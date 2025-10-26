@@ -38,9 +38,11 @@ pub fn generate_lexer(spec: &LexerSpec) -> String {
     output.push_str("}\n\n");
     
     // Generate token kind constants
+    output.push_str("// Token kind constants\n");
     for rule in &spec.rules {
         output.push_str(&format!("pub const {}: u32 = {};\n", rule.name, rule.kind));
     }
+    output.push_str("pub const UNKNOWN_TOKEN: u32 = u32::MAX; // For unmatched characters\n");
     output.push_str("\n");
     
     // Generate the lexer struct
@@ -98,7 +100,7 @@ pub fn generate_lexer(spec: &LexerSpec) -> String {
     output.push_str("        let ch = remaining.chars().next().unwrap();\n");
     output.push_str("        let matched = ch.to_string();\n");
     output.push_str("        self.advance(&matched);\n");
-    output.push_str("        Some(Token::new(u32::MAX, matched, start_row, start_col, 1, indent))\n");
+    output.push_str("        Some(Token::new(UNKNOWN_TOKEN, matched, start_row, start_col, 1, indent))\n");
     output.push_str("    }\n\n");
     
     output.push_str("    fn match_pattern(&self, input: &str, pattern: &str) -> Option<String> {\n");
