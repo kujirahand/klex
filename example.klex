@@ -1,0 +1,38 @@
+// Example lexer specification for klex
+// This will generate a simple calculator lexer
+
+%%
+[0-9]+ -> NUMBER
+[a-zA-Z_][a-zA-Z0-9_]* -> IDENTIFIER
+\+ -> PLUS
+\- -> MINUS
+\* -> MULTIPLY
+/ -> DIVIDE
+\( -> LPAREN
+\) -> RPAREN
+[ \t]+ -> WHITESPACE
+\n -> NEWLINE
+%%
+// Example suffix code - main function, tests, etc.
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_lexer() {
+        let input = "123 + abc".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, NUMBER);
+        assert_eq!(token.value, "123");
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, WHITESPACE);
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, PLUS);
+        assert_eq!(token.value, "+");
+    }
+}
+
