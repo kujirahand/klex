@@ -13,7 +13,14 @@ pub struct Token {
 
 #[allow(dead_code)]
 impl Token {
-    pub fn new(kind: u32, value: String, row: usize, col: usize, length: usize, indent: usize) -> Self {
+    pub fn new(
+        kind: u32,
+        value: String,
+        row: usize,
+        col: usize,
+        length: usize,
+        indent: usize,
+    ) -> Self {
         Token {
             kind,
             value,

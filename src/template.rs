@@ -1,5 +1,11 @@
 /// Code generation templates for the lexer
 
+/// Import statements template
+pub const IMPORTS_TEMPLATE: &str = r#"use regex::Regex;
+use std::collections::HashMap;
+
+"#;
+
 /// Token struct template
 pub const TOKEN_STRUCT_TEMPLATE: &str = r#"/// Token structure that represents a lexical token
 #[derive(Debug, Clone, PartialEq)]
@@ -35,19 +41,45 @@ pub const LEXER_STRUCT_TEMPLATE: &str = r#"pub struct Lexer {
     pos: usize,
     row: usize,
     col: usize,
+    regex_cache: HashMap<u32, Regex>,
 }
 
-impl Lexer {
+"#;
+
+/// Lexer constructor template - this will be customized per lexer
+pub fn lexer_constructor_template(rules: &[crate::parser::LexerRule]) -> String {
+    let mut constructor = String::from(
+        r#"impl Lexer {
     pub fn new(input: String) -> Self {
+        let mut regex_cache = HashMap::new();
+        
+        // Pre-compile all patterns and store them in cache
+"#,
+    );
+
+    for rule in rules {
+        constructor.push_str(&format!(
+            "        regex_cache.insert({}, Regex::new(r\"^{}\").unwrap());\n",
+            rule.kind, rule.pattern
+        ));
+    }
+
+    constructor.push_str(
+        r#"        
         Lexer {
             input,
             pos: 0,
             row: 1,
             col: 1,
+            regex_cache,
         }
     }
 
-"#;
+"#,
+    );
+
+    constructor
+}
 
 /// next_token method start template
 pub const NEXT_TOKEN_START_TEMPLATE: &str = r#"    pub fn next_token(&mut self) -> Option<Token> {
@@ -78,12 +110,10 @@ pub const NEXT_TOKEN_END_TEMPLATE: &str = r#"        // No pattern matched, cons
 
 "#;
 
-/// Helper methods template
-pub const HELPER_METHODS_TEMPLATE: &str = r#"    fn match_pattern(&self, input: &str, pattern: &str) -> Option<String> {
-        use regex::Regex;
-        let regex_pattern = format!("^{}", pattern);
-        if let Ok(re) = Regex::new(&regex_pattern) {
-            if let Some(mat) = re.find(input) {
+/// Helper methods template (optimized version with regex caching)
+pub const HELPER_METHODS_TEMPLATE: &str = r#"    fn match_cached_pattern(&self, input: &str, token_kind: u32) -> Option<String> {
+        if let Some(regex) = self.regex_cache.get(&token_kind) {
+            if let Some(mat) = regex.find(input) {
                 return Some(mat.as_str().to_string());
             }
         }
@@ -105,10 +135,11 @@ pub const HELPER_METHODS_TEMPLATE: &str = r#"    fn match_pattern(&self, input: 
 
 "#;
 
-/// Template for generating a rule match pattern
+/// Template for generating a rule match pattern (optimized version)
 pub fn rule_match_template(rule_pattern: &str, rule_name: &str, rule_kind: u32) -> String {
-    format!(r#"        // Rule: {} -> {}
-        if let Some(matched) = self.match_pattern(remaining, r"{}") {{
+    format!(
+        r#"        // Rule: {} -> {}
+        if let Some(matched) = self.match_cached_pattern(remaining, {}) {{
             let token = Token::new(
                 {},
                 matched.clone(),
@@ -121,5 +152,7 @@ pub fn rule_match_template(rule_pattern: &str, rule_name: &str, rule_kind: u32) 
             return Some(token);
         }}
 
-"#, rule_pattern, rule_name, rule_pattern, rule_kind)
+"#,
+        rule_pattern, rule_name, rule_kind, rule_kind
+    )
 }
