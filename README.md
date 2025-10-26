@@ -1,4 +1,4 @@
-# klex
+# klex (kujira-lexer)
 
 シンプルなLexer（字句解析器）ジェネレーターです。
 

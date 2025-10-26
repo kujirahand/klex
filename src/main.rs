@@ -1,6 +1,7 @@
 mod token;
 mod parser;
 mod generator;
+mod template;
 
 use std::env;
 use std::fs;
