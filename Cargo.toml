@@ -2,6 +2,19 @@
 name = "klex"
 version = "0.1.0"
 edition = "2021"
+authors = ["kujirahand"]
+description = "A simple lexer (tokenizer) generator for Rust"
+license = "MIT"
+repository = "https://github.com/kujirahand/klex"
+homepage = "https://github.com/kujirahand/klex"
+documentation = "https://docs.rs/klex"
+readme = "README.md"
+keywords = ["lexer", "tokenizer", "parser", "generator", "compiler"]
+categories = ["parsing", "development-tools"]
 
 [dependencies]
 regex = "1"
+
+[[bin]]
+name = "klex"
+path = "src/main.rs"

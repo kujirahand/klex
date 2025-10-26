@@ -1,3 +1,8 @@
+//! klex - A simple lexer generator for Rust
+//!
+//! This is the command-line interface for klex. It takes a lexer specification
+//! file and generates Rust code for a lexer.
+
 mod generator;
 mod parser;
 mod token;
@@ -6,6 +11,7 @@ use std::env;
 use std::fs;
 use std::process;
 
+/// Main entry point for the klex command-line tool.
 fn main() {
     let args: Vec<String> = env::args().collect();
 

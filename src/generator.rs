@@ -1,9 +1,49 @@
+//! Code generation module for klex.
+//!
+//! This module contains the functionality to generate Rust lexer code
+//! from a parsed lexer specification.
+
 use crate::parser::LexerSpec;
 
 // Include the auto-generated template
 include!(concat!(env!("OUT_DIR"), "/template.rs"));
 
-/// Generates Rust code for the lexer (optimized version with regex caching)
+/// Generates Rust code for the lexer (optimized version with regex caching).
+///
+/// This function takes a parsed lexer specification and generates complete
+/// Rust source code that includes:
+/// - Token kind constants
+/// - A Lexer struct with caching for compiled regex patterns
+/// - Token generation logic
+/// - User-defined prefix and suffix code
+///
+/// # Arguments
+///
+/// * `spec` - The parsed lexer specification containing rules and code sections
+/// * `source_file` - The name of the source file (used for comments)
+///
+/// # Returns
+///
+/// A String containing the complete generated Rust code for the lexer.
+///
+/// # Example
+///
+/// ```rust
+/// use klex::{parse_spec, generate_lexer};
+///
+/// let input = r#"
+/// use std::collections::HashMap;
+/// %%
+/// [0-9]+ -> NUMBER
+/// [a-zA-Z_][a-zA-Z0-9_]* -> IDENTIFIER
+/// %%
+/// fn main() { println!("Generated lexer"); }
+/// "#;
+///
+/// let spec = parse_spec(input).unwrap();
+/// let code = generate_lexer(&spec, "example.klex");
+/// // code now contains complete Rust lexer implementation
+/// ```
 pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
     // Use the embedded template
     let template = LEXER_TEMPLATE;

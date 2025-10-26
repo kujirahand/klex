@@ -1,7 +1,14 @@
+//! Parser module for klex.
+//!
+//! This module handles parsing of lexer specification files and provides
+//! data structures to represent the parsed content.
+
 use std::error::Error;
 use std::fmt;
 
-/// Represents a lexer rule with a pattern and token kind
+/// Represents a lexer rule with a pattern and token kind.
+///
+/// Each rule defines how to match a specific token type using a regular expression pattern.
 #[derive(Debug, Clone)]
 pub struct LexerRule {
     pub pattern: String,
@@ -10,6 +17,13 @@ pub struct LexerRule {
 }
 
 impl LexerRule {
+    /// Creates a new lexer rule.
+    ///
+    /// # Arguments
+    ///
+    /// * `pattern` - The regular expression pattern to match
+    /// * `kind` - The numeric token kind identifier
+    /// * `name` - The symbolic name for this token type
     pub fn new(pattern: String, kind: u32, name: String) -> Self {
         LexerRule {
             pattern,
@@ -19,7 +33,12 @@ impl LexerRule {
     }
 }
 
-/// Represents the parsed lexer specification
+/// Represents the parsed lexer specification.
+///
+/// Contains all the information needed to generate a lexer:
+/// - Prefix code (Rust code to include at the beginning)
+/// - Lexer rules (pattern -> token mappings)
+/// - Suffix code (Rust code to include at the end)
 #[derive(Debug)]
 pub struct LexerSpec {
     pub prefix_code: String,
@@ -28,6 +47,7 @@ pub struct LexerSpec {
 }
 
 impl LexerSpec {
+    /// Creates a new empty lexer specification.
     pub fn new() -> Self {
         LexerSpec {
             prefix_code: String::new(),
@@ -37,12 +57,20 @@ impl LexerSpec {
     }
 }
 
+impl Default for LexerSpec {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Error type for parsing failures.
 #[derive(Debug)]
 pub struct ParseError {
     message: String,
 }
 
 impl ParseError {
+    /// Creates a new parse error with the given message.
     pub fn new(message: String) -> Self {
         ParseError { message }
     }
@@ -56,7 +84,44 @@ impl fmt::Display for ParseError {
 
 impl Error for ParseError {}
 
-/// Parses a lexer specification file
+/// Parses a lexer specification file.
+///
+/// The input should be in the format:
+/// ```text
+/// (Rust code)
+/// %%
+/// (Lexer rules)
+/// %%
+/// (Rust code)
+/// ```
+///
+/// Rules should be in the format: `pattern -> TOKEN_NAME` or just `pattern`.
+///
+/// # Arguments
+///
+/// * `input` - The lexer specification file content
+///
+/// # Returns
+///
+/// A `Result` containing the parsed `LexerSpec` or an error.
+///
+/// # Examples
+///
+/// ```rust
+/// use klex::parse_spec;
+///
+/// let input = r#"
+/// use std::collections::HashMap;
+/// %%
+/// [0-9]+ -> NUMBER
+/// [a-zA-Z_][a-zA-Z0-9_]* -> IDENTIFIER
+/// %%
+/// // Generated code will be here
+/// "#;
+///
+/// let spec = parse_spec(input).unwrap();
+/// assert_eq!(spec.rules.len(), 2);
+/// ```
 pub fn parse_spec(input: &str) -> Result<LexerSpec, Box<dyn Error>> {
     let mut spec = LexerSpec::new();
 

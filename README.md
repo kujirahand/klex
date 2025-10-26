@@ -10,13 +10,40 @@ klex generates Rust lexer code from a single definition file. You describe token
 
 ## Installation
 
+### From crates.io
+
+```bash
+cargo add klex
+```
+
+### From source
+
 ```bash
 cargo build --release
 ```
 
 ## Usage
 
-### Basic
+### As a library
+
+```rust
+use klex::{generate_lexer, parse_spec};
+use std::fs;
+
+// Read input file
+let input = fs::read_to_string("example.klex").expect("Failed to read input file");
+
+// Parse the input
+let spec = parse_spec(&input).expect("Failed to parse input");
+
+// Generate Rust code
+let output = generate_lexer(&spec, "example.klex");
+
+// Write output
+fs::write("output.rs", output).expect("Failed to write output");
+```
+
+### Command line tool
 
 ```bash
 cargo run -- <INPUT_FILE> [OUTPUT_FILE]
