@@ -11,17 +11,28 @@ build:
 	cargo build
 
 # Generate test lexer and run tests
-test: generate-lexer
+test: generate-lexers
 	@echo "Running tests..."
 	cargo test
 	@$(MAKE) clean-generated
 
-# Generate lexer from example.klex for testing
-generate-lexer:
-	@echo "Generating lexer from example.klex..."
-	cargo run example.klex
-	@echo "Copying generated lexer to tests directory..."
-	cp lexer.rs tests/example_lexer.rs
+# Generate lexers from all test/*.klex files
+generate-lexers: generate-example generate-test-context
+
+# Generate lexer from tests/example.klex for testing
+generate-example:
+	@echo "Generating lexer from tests/example.klex..."
+	cargo run tests/example.klex tests/example_lexer.rs
+	@echo "Generated lexer saved as tests/example_lexer.rs"
+
+# Generate lexer from tests/test_context.klex for testing
+generate-test-context:
+	@echo "Generating lexer from tests/test_context.klex..."
+	cargo run tests/test_context.klex tests/test_context_lexer.rs
+	@echo "Generated lexer saved as tests/test_context_lexer.rs"
+
+# Legacy target for backward compatibility
+generate-lexer: generate-example
 
 # Clean build artifacts
 clean:
@@ -31,7 +42,7 @@ clean:
 # Clean generated files
 clean-generated:
 	@echo "Cleaning generated files..."
-	@rm -f lexer.rs tests/example_lexer.rs
+	@rm -f lexer.rs tests/example_lexer.rs tests/test_context_lexer.rs
 
 # Full clean (build artifacts + generated files)
 clean-all: clean clean-generated
@@ -53,12 +64,14 @@ fmt:
 	@if [ ! -s tests/example_lexer.rs ]; then rm -f tests/example_lexer.rs; fi
 
 # Run example to demonstrate functionality
-demo: generate-lexer
+demo: generate-lexers
 	@echo "Running demo..."
 	@echo "Generated lexer files:"
-	@ls -la lexer.rs tests/example_lexer.rs
-	@echo "\nFirst 50 lines of generated lexer:"
-	@head -50 lexer.rs
+	@ls -la tests/example_lexer.rs tests/test_context_lexer.rs 2>/dev/null || echo "No generated files found"
+	@echo "\nTest files in tests/ directory:"
+	@ls -la tests/*.klex
+	@echo "\nFirst 50 lines of example lexer:"
+	@head -50 tests/example_lexer.rs 2>/dev/null || echo "example_lexer.rs not found"
 	@$(MAKE) clean-generated
 
 # Install dependencies (if needed)
@@ -72,7 +85,7 @@ release:
 	cargo build --release
 
 # Run benchmark (requires generated lexer)
-bench: generate-lexer
+bench: generate-lexers
 	@echo "Running simple benchmark..."
 	@echo "Testing generated lexer performance (this may take a moment)..."
 	@echo 'fn main() { println!("Benchmark completed. See demo for actual performance test."); }' > bench_test.rs
@@ -84,19 +97,41 @@ bench: generate-lexer
 # Development workflow: format, build, test
 dev: fmt build test
 
+# Test individual klex files
+test-example: generate-example
+	@echo "Testing example.klex..."
+	@echo "Generated file: tests/example_lexer.rs"
+	@wc -l tests/example_lexer.rs
+	
+test-context: generate-test-context
+	@echo "Testing test_context.klex..."
+	@echo "Generated file: tests/test_context_lexer.rs"
+	@wc -l tests/test_context_lexer.rs
+
+# List all test files
+list-tests:
+	@echo "Available test files:"
+	@ls -la tests/*.klex
+
 # Help target
 help:
 	@echo "Available targets:"
-	@echo "  all          - Build and test (default)"
-	@echo "  build        - Build the project"
-	@echo "  test         - Generate lexer and run tests"
-	@echo "  clean        - Clean build artifacts"
-	@echo "  clean-all    - Clean everything (build + generated files)"
-	@echo "  check        - Check formatting and run clippy"
-	@echo "  fmt          - Format code"
-	@echo "  demo         - Run demonstration"
-	@echo "  bench        - Run performance benchmark"
-	@echo "  deps         - Install dependencies"
-	@echo "  release      - Build release version"
-	@echo "  dev          - Development workflow (fmt + build + test)"
-	@echo "  help         - Show this help message"
+	@echo "  all              - Build and test (default)"
+	@echo "  build            - Build the project"
+	@echo "  test             - Generate all lexers and run tests"
+	@echo "  generate-lexers  - Generate lexers from all tests/*.klex files"
+	@echo "  generate-example - Generate lexer from tests/example.klex"
+	@echo "  generate-test-context - Generate lexer from tests/test_context.klex"
+	@echo "  test-example     - Test example.klex individually"
+	@echo "  test-context     - Test test_context.klex individually"
+	@echo "  list-tests       - List all available test files"
+	@echo "  clean            - Clean build artifacts"
+	@echo "  clean-all        - Clean everything (build + generated files)"
+	@echo "  check            - Check formatting and run clippy"
+	@echo "  fmt              - Format code"
+	@echo "  demo             - Run demonstration"
+	@echo "  bench            - Run performance benchmark"
+	@echo "  deps             - Install dependencies"
+	@echo "  release          - Build release version"
+	@echo "  dev              - Development workflow (fmt + build + test)"
+	@echo "  help             - Show this help message"

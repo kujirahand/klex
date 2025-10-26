@@ -60,26 +60,105 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
     let mut constants = String::new();
     constants.push_str("// Token kind constants\n");
     for rule in &spec.rules {
-        constants.push_str(&format!("pub const {}: u32 = {};\n", rule.name, rule.kind));
+        if rule.action_code.is_none() && !rule.name.is_empty() {
+            constants.push_str(&format!("pub const {}: u32 = {};\n", rule.name, rule.kind));
+        }
     }
-    constants.push_str("pub const UNKNOWN_TOKEN: u32 = u32::MAX; // For unmatched characters\n\n");
+    constants.push_str("\n");
 
     // Generate regex cache code
     let mut regex_code = String::new();
     regex_code.push_str("        // Pre-compile all patterns and store them in cache\n");
     for rule in &spec.rules {
+        // For raw string literals, we need to handle # characters specially
+        // We'll use regular string literals with proper escaping instead
+        let escaped_pattern = rule.pattern.replace("\\", "\\\\").replace("\"", "\\\"");
         regex_code.push_str(&format!(
-            "        regex_cache.insert({}, Regex::new(r\"^{}\").unwrap());\n",
-            rule.kind, rule.pattern
+            "        regex_cache.insert({}, Regex::new(\"^{}\").unwrap());\n",
+            rule.kind, escaped_pattern
         ));
     }
     regex_code.push_str("        ");
 
     // Generate rule matching code
     let mut rule_match_code = String::new();
+    
+    // First, generate context-dependent rules (higher priority)
     for rule in &spec.rules {
-        rule_match_code.push_str(&format!(
-            r#"        // Rule: {} -> {}
+        if let Some(context_token) = &rule.context_token {
+            // Find the context token kind by name
+            let context_kind = spec.rules.iter()
+                .find(|r| r.name == *context_token)
+                .map(|r| r.kind)
+                .unwrap_or(0); // Default to 0 if not found
+            
+            rule_match_code.push_str(&format!(
+                r#"        // Context-dependent rule: {} -> {} (after {})
+        if self.last_token_kind == Some({}) {{
+            if let Some(matched) = self.match_cached_pattern(remaining, {}) {{
+                let token = Token::new(
+                    {},
+                    matched.clone(),
+                    start_row,
+                    start_col,
+                    matched.len(),
+                    indent,
+                );
+                self.advance(&matched);
+                self.last_token_kind = Some(token.kind);
+                return Some(token);
+            }}
+        }}
+
+"#,
+                rule.pattern, rule.name, context_token, context_kind, rule.kind, rule.kind
+            ));
+        }
+    }
+    
+    // Second, generate action rules (higher priority than regular token rules)
+    for rule in &spec.rules {
+        if rule.context_token.is_none() && rule.action_code.is_some() {
+            let action_code = rule.action_code.as_ref().unwrap();
+            rule_match_code.push_str(&format!(
+                r#"        // Action rule: {} -> {{ {} }}
+        if let Some(matched) = self.match_cached_pattern(remaining, {}) {{
+            let matched_str = matched.clone();
+            self.advance(&matched_str);
+            // Execute action code with available variables
+            let action_result: Option<Token> = {{
+                let matched = &matched_str;
+                let _start_row = start_row;
+                let _start_col = start_col;
+                let _indent = indent;
+                {}
+            }};
+            if let Some(token) = action_result {{
+                self.last_token_kind = Some(token.kind);
+                return Some(token);
+            }} else {{
+                // Continue to next iteration if no token was returned from action
+                return self.next_token();
+            }}
+        }}
+
+"#,
+                rule.pattern, action_code, rule.kind, action_code
+            ));
+        }
+    }
+    
+    // Finally, generate regular token rules
+    for rule in &spec.rules {
+        if rule.context_token.is_none() && rule.action_code.is_none() {
+            let update_context = if rule.name == "WHITESPACE" || rule.name == "NEWLINE" {
+                "// Whitespace tokens don't update context"
+            } else {
+                "self.last_token_kind = Some(token.kind)"
+            };
+            
+            rule_match_code.push_str(&format!(
+                r#"        // Rule: {} -> {}
         if let Some(matched) = self.match_cached_pattern(remaining, {}) {{
             let token = Token::new(
                 {},
@@ -90,12 +169,14 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
                 indent,
             );
             self.advance(&matched);
+            {};
             return Some(token);
         }}
 
 "#,
-            rule.pattern, rule.name, rule.kind, rule.kind
-        ));
+                rule.pattern, rule.name, rule.kind, rule.kind, update_context
+            ));
+        }
     }
 
     // Replace markers with generated code

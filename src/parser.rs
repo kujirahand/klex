@@ -9,11 +9,14 @@ use std::fmt;
 /// Represents a lexer rule with a pattern and token kind.
 ///
 /// Each rule defines how to match a specific token type using a regular expression pattern.
+/// Rules can optionally depend on a previous token context.
 #[derive(Debug, Clone)]
 pub struct LexerRule {
     pub pattern: String,
     pub kind: u32,
     pub name: String,
+    pub context_token: Option<String>, // Optional context dependency
+    pub action_code: Option<String>,   // Optional action code to execute when matched
 }
 
 impl LexerRule {
@@ -29,6 +32,42 @@ impl LexerRule {
             pattern,
             kind,
             name,
+            context_token: None,
+            action_code: None,
+        }
+    }
+
+    /// Creates a new context-dependent lexer rule.
+    ///
+    /// # Arguments
+    ///
+    /// * `pattern` - The regular expression pattern to match
+    /// * `kind` - The numeric token kind identifier
+    /// * `name` - The symbolic name for this token type
+    /// * `context_token` - The name of the token that must precede this rule
+    pub fn new_with_context(pattern: String, kind: u32, name: String, context_token: String) -> Self {
+        LexerRule {
+            pattern,
+            kind,
+            name,
+            context_token: Some(context_token),
+            action_code: None,
+        }
+    }
+
+    /// Creates a new lexer rule with action code.
+    ///
+    /// # Arguments
+    ///
+    /// * `pattern` - The regular expression pattern to match
+    /// * `action_code` - The Rust code to execute when this pattern matches
+    pub fn new_with_action(pattern: String, action_code: String) -> Self {
+        LexerRule {
+            pattern,
+            kind: 0, // Action rules don't need a kind
+            name: String::new(), // Action rules don't have a name
+            context_token: None,
+            action_code: Some(action_code),
         }
     }
 }
@@ -147,11 +186,45 @@ pub fn parse_spec(input: &str) -> Result<LexerSpec, Box<dyn Error>> {
             continue;
         }
 
-        // Parse rule: pattern -> name or just pattern
-        if let Some(arrow_pos) = line.find("->") {
+        // Parse different rule formats
+        if line.starts_with('%') {
+            // Context-dependent rule: %<CONTEXT_TOKEN> <pattern> -> <TOKEN_NAME>
+            if let Some(arrow_pos) = line.find("->") {
+                let left_part = line[1..arrow_pos].trim(); // Remove '%' and get left part
+                let token_name = line[arrow_pos + 2..].trim().to_string();
+                
+                // Split left part to get context token and pattern
+                let parts: Vec<&str> = left_part.splitn(2, ' ').collect();
+                if parts.len() == 2 {
+                    let context_token = parts[0].trim().to_string();
+                    let pattern = parts[1].trim().to_string();
+                    spec.rules.push(LexerRule::new_with_context(pattern, kind_counter, token_name, context_token));
+                } else {
+                    return Err(Box::new(ParseError::new(
+                        format!("Invalid context rule format: {}", line)
+                    )));
+                }
+            } else {
+                return Err(Box::new(ParseError::new(
+                    format!("Context rule must have -> operator: {}", line)
+                )));
+            }
+        } else if let Some(arrow_pos) = line.find("->") {
+            // Regular rule: pattern -> name or pattern -> { action_code }
             let pattern = line[..arrow_pos].trim().to_string();
-            let name = line[arrow_pos + 2..].trim().to_string();
-            spec.rules.push(LexerRule::new(pattern, kind_counter, name));
+            let right_part = line[arrow_pos + 2..].trim();
+            
+            if right_part.starts_with('{') && right_part.ends_with('}') {
+                // Action rule: pattern -> { action_code }
+                let action_code = right_part[1..right_part.len()-1].trim().to_string();
+                let mut rule = LexerRule::new_with_action(pattern, action_code);
+                rule.kind = kind_counter; // Set the kind for action rules too
+                spec.rules.push(rule);
+            } else {
+                // Token rule: pattern -> TOKEN_NAME
+                let name = right_part.to_string();
+                spec.rules.push(LexerRule::new(pattern, kind_counter, name));
+            }
         } else {
             // Use the pattern as the name
             let pattern = line.to_string();

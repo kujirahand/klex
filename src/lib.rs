@@ -14,13 +14,13 @@
 //! use std::fs;
 //!
 //! // Read input file
-//! let input = fs::read_to_string("example.klex").expect("Failed to read input file");
+//! let input = fs::read_to_string("tests/example.klex").expect("Failed to read input file");
 //!
 //! // Parse the input
 //! let spec = parse_spec(&input).expect("Failed to parse input");
 //!
 //! // Generate Rust code
-//! let output = generate_lexer(&spec, "example.klex");
+//! let output = generate_lexer(&spec, "tests/example.klex");
 //!
 //! // Write output
 //! fs::write("output.rs", output).expect("Failed to write output");

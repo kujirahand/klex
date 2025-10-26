@@ -40,6 +40,7 @@ pub struct Lexer {
 	row: usize,
 	col: usize,
 	regex_cache: HashMap<u32, Regex>,
+	last_token_kind: Option<u32>,
 }
 
 impl Lexer {
@@ -52,6 +53,7 @@ impl Lexer {
 			row: 1,
 			col: 1,
 			regex_cache,
+			last_token_kind: None,
 		}
 	}
 
@@ -73,7 +75,9 @@ impl Lexer {
 		let ch = remaining.chars().next().unwrap();
 		let matched = ch.to_string();
 		self.advance(&matched);
-		Some(Token::new(UNKNOWN_TOKEN, matched, start_row, start_col, 1, indent))
+		let token = Token::new(UNKNOWN_TOKEN, matched, start_row, start_col, 1, indent);
+		self.last_token_kind = Some(token.kind);
+		Some(token)
 	}
 
 	fn calculate_line_indent(&self) -> usize {

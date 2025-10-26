@@ -26,8 +26,12 @@ klex/
 │   ├── generator.rs     # Rustコード生成器
 │   ├── token.rs         # Tokenデータ構造定義
 │   └── lexer.rs         # レキサーテンプレート（build.rsで利用）
+├── tests/               # テストファイル（.klexファイルとRustテストファイル）
+│   ├── example.klex     # サンプル仕様ファイル
+│   ├── test_context.klex # コンテキスト依存テスト用仕様ファイル
+│   └── lexer_test.rs    # Rustテストファイル
 ├── build.rs             # ビルドスクリプト（テンプレート埋め込み）
-├── example.klex         # サンプル仕様ファイル
+├── Makefile             # ビルド・テスト自動化
 ├── Cargo.toml           # プロジェクト設定
 └── README.md            # プロジェクト説明書
 ```
@@ -70,6 +74,7 @@ klex/
 - 位置情報追跡（行、列）
 - インデント計算
 - キャッシュ機能付き正規表現マッチング
+- アクションコード実行（カスタムロジック実行）
 
 #### 4. トークン定義 (`token.rs`)
 
@@ -105,9 +110,40 @@ pub struct Token {
 
 各ルールは以下の形式で記述：
 
-```text
-<正規表現パターン> -> <TOKEN_NAME>
 ```
+<規則> -> <TOKEN_NAME>
+%<TOKEN_NAME> <規則> -> <TOKEN_NAME>
+<規則> -> { <ACTION_CODE> }
+```
+
+規則は次のいずれかの形式を取ることができます:
+
+```text
+'文字'
+"文字列"
+/正規表現パターン/
+( <規則> | <規則> )  ← 選択肢
+& <規則> <規則> ← 規則をテスト(先読み)してOKなら続く規則をテスト (消費しない) 
+^ <規則> <規則> ← 規則をテスト(先読み)してNGなら続く規則をテスト (消費しない)
+```
+
+#### アクションコードルール
+
+アクションコードルールは、マッチしたパターンに対してカスタムなRustコードを実行します。アクションコード内では以下の変数が利用可能です：
+
+- `matched: &String` - マッチしたテキスト
+- `_start_row: usize` - マッチした位置の行番号
+- `_start_col: usize` - マッチした位置の列番号  
+- `_indent: usize` - 行頭からのインデント
+
+アクションコードは `Option<Token>` を返す必要があります：
+
+- `Some(token)` - 指定されたトークンを返す
+- `None` - トークンをスキップして次のマッチングを継続
+
+アクションルールは通常のトークンルールより高い優先度で処理されます。
+
+コンテキスト依存ルール（`%`で始まる）は、指定されたトークンの直後にのみマッチします。空白やニューライントークンはコンテキストを更新しないため、意味のあるトークン間でのコンテキスト依存マッチングが可能です。
 
 **例**:
 
@@ -122,7 +158,21 @@ pub struct Token {
 \) -> RPAREN
 [ \t]+ -> WHITESPACE
 \n -> NEWLINE
+%IDENTIFIER [0-9]+ -> INDEXED_NUMBER
+%PLUS [0-9]+ -> POSITIVE_NUMBER
+// アクションコード例
+"debug" -> { println!("Debug mode activated!"); None }
+[0-9]+\.[0-9]+ -> { 
+    let float_val: f64 = matched.parse().unwrap();
+    Some(Token::new(FLOAT_TOKEN, matched.clone(), _start_row, _start_col, matched.len(), _indent))
+}
 ```
+
+この例では：
+
+- `INDEXED_NUMBER`は`IDENTIFIER`トークンの直後にのみマッチし、`POSITIVE_NUMBER`は`PLUS`トークンの直後にのみマッチします
+- `"debug"`はデバッグメッセージを出力してトークンをスキップします
+- 浮動小数点数は値を解析してカスタムトークンを返します
 
 ## 使用方法
 
@@ -133,13 +183,13 @@ use klex::{generate_lexer, parse_spec};
 use std::fs;
 
 // 入力ファイル読み込み
-let input = fs::read_to_string("example.klex").unwrap();
+let input = fs::read_to_string("tests/example.klex").unwrap();
 
 // 仕様を解析
 let spec = parse_spec(&input).unwrap();
 
 // Rustコード生成
-let output = generate_lexer(&spec, "example.klex");
+let output = generate_lexer(&spec, "tests/example.klex");
 
 // 出力ファイル書き込み
 fs::write("output.rs", output).unwrap();
@@ -152,7 +202,7 @@ fs::write("output.rs", output).unwrap();
 cargo run -- <入力ファイル> [出力ファイル]
 
 # 例
-cargo run -- example.klex generated_lexer.rs
+cargo run -- tests/example.klex generated_lexer.rs
 ```
 
 ### 生成されたレキサーの使用
@@ -180,6 +230,12 @@ while let Some(token) = lexer.next_token() {
 2. 文字列リテラルとしてエスケープ処理
 3. `OUT_DIR/template.rs`として埋め込み用コードを生成
 
+### コンテキスト依存機能
+
+- **前トークン追跡**: 直前の意味のあるトークンを記録
+- **選択的コンテキスト更新**: `WHITESPACE`や`NEWLINE`はコンテキストを更新しない
+- **優先度制御**: コンテキスト依存ルールは通常ルールより優先
+
 ### パフォーマンス最適化
 
 - **正規表現キャッシュ**: コンパイル済み正規表現をHashMapでキャッシュ
@@ -195,19 +251,22 @@ while let Some(token) = lexer.next_token() {
 ## 制限事項と注意事項
 
 1. **正規表現の制約**: Rustの`regex`クレートの制約に従う
-2. **トークン優先度**: ファイル内の記述順序でマッチング優先度が決定
-3. **メモリ使用量**: 大きな入力に対してはメモリ使用量に注意
-4. **Unicode対応**: UTF-8文字列の適切な処理をサポート
+2. **トークン優先度**: コンテキスト依存ルールが通常ルールより優先される
+3. **コンテキスト管理**: 現在は直前の1トークンのみを追跡（深いコンテキストは未サポート）
+4. **メモリ使用量**: 大きな入力に対してはメモリ使用量に注意
+5. **Unicode対応**: UTF-8文字列の適切な処理をサポート
 
 ## 拡張可能性
 
 ### 将来の機能追加候補
 
-1. **カスタムトークン処理**: トークン後処理のフック機能
-2. **エラーリカバリ**: より詳細なエラー情報と回復機能
-3. **パフォーマンス向上**: さらなる最適化オプション
-4. **IDEサポート**: 構文ハイライトや自動補完
-5. **デバッグ機能**: トレース機能やデバッグ出力
+1. **拡張コンテキスト**: 複数トークンの履歴追跡
+2. **カスタムトークン処理**: トークン後処理のフック機能
+3. **エラーリカバリ**: より詳細なエラー情報と回復機能
+4. **パフォーマンス向上**: さらなる最適化オプション
+5. **IDEサポート**: 構文ハイライトや自動補完
+6. **デバッグ機能**: トレース機能やデバッグ出力
+7. **状態機械**: より複雑なコンテキスト依存ルール
 
 ### アーキテクチャ拡張
 
@@ -217,9 +276,18 @@ while let Some(token) = lexer.next_token() {
 
 ## テスト戦略
 
-- 単体テスト: 各モジュールの機能テスト
-- 統合テスト: エンドツーエンドのファイル処理テスト
-- サンプルテスト: `example.klex`を使った実際の使用例テスト
+- **単体テスト**: 各モジュールの機能テスト（`cargo test`）
+- **統合テスト**: エンドツーエンドのファイル処理テスト（`tests/`ディレクトリ）
+- **サンプルテスト**: `tests/example.klex`と`tests/test_context.klex`を使った実際の使用例テスト
+- **自動化**: `Makefile`による統合されたビルド・テストプロセス
+
+### Makefileターゲット
+
+- `make test` - 全テストの実行
+- `make generate-lexers` - 全テストファイルからレキサー生成
+- `make test-example` - example.klexの個別テスト
+- `make test-context` - test_context.klexの個別テスト  
+- `make list-tests` - 利用可能なテストファイル一覧
 
 ## ドキュメント
 
