@@ -3,10 +3,55 @@
 //! This module contains the functionality to generate Rust lexer code
 //! from a parsed lexer specification.
 
-use crate::parser::LexerSpec;
+use crate::parser::{LexerSpec, RulePattern};
 
 // Include the auto-generated template
 include!(concat!(env!("OUT_DIR"), "/template.rs"));
+
+/// Converts a RulePattern to a regular expression string.
+fn pattern_to_regex(pattern: &RulePattern) -> String {
+    match pattern {
+        RulePattern::CharLiteral(ch) => {
+            // Escape special regex characters
+            regex::escape(&ch.to_string())
+        }
+        RulePattern::StringLiteral(s) => {
+            // Escape the entire string for literal matching
+            regex::escape(s)
+        }
+        RulePattern::Regex(regex_str) => {
+            // Use the regex pattern as-is
+            regex_str.clone()
+        }
+        RulePattern::CharRange(start_char, end_char) => {
+            // Convert character range to regex pattern: [a-z]+
+            format!("[{}-{}]+", start_char, end_char)
+        }
+        RulePattern::CharSet(char_set_pattern) => {
+            // Use character set pattern as-is (it's already a valid regex)
+            char_set_pattern.clone()
+        }
+        RulePattern::Choice(patterns) => {
+            // Create alternation: (pattern1|pattern2|...)
+            let alternatives: Vec<String> = patterns.iter()
+                .map(|p| pattern_to_regex(p))
+                .collect();
+            format!("({})", alternatives.join("|"))
+        }
+        RulePattern::EscapedChar(ch) => {
+            // Escape the character for regex matching
+            regex::escape(&ch.to_string())
+        }
+        RulePattern::AnyChar => {
+            // Match any single character (except newline)
+            ".".to_string()
+        }
+        RulePattern::AnyCharPlus => {
+            // Match one or more of any character (except newline)
+            ".+".to_string()
+        }
+    }
+}
 
 /// Generates Rust code for the lexer (optimized version with regex caching).
 ///
@@ -70,9 +115,9 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
     let mut regex_code = String::new();
     regex_code.push_str("        // Pre-compile all patterns and store them in cache\n");
     for rule in &spec.rules {
-        // For raw string literals, we need to handle # characters specially
-        // We'll use regular string literals with proper escaping instead
-        let escaped_pattern = rule.pattern.replace("\\", "\\\\").replace("\"", "\\\"");
+        // Convert pattern to regex and escape for string literal
+        let regex_pattern = pattern_to_regex(&rule.pattern);
+        let escaped_pattern = regex_pattern.replace("\\", "\\\\").replace("\"", "\\\"");
         regex_code.push_str(&format!(
             "        regex_cache.insert({}, Regex::new(\"^{}\").unwrap());\n",
             rule.kind, escaped_pattern
@@ -92,6 +137,7 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
                 .map(|r| r.kind)
                 .unwrap_or(0); // Default to 0 if not found
             
+            let pattern_desc = pattern_to_regex(&rule.pattern).replace('\n', "\\n").replace('\t', "\\t").replace('\r', "\\r");
             rule_match_code.push_str(&format!(
                 r#"        // Context-dependent rule: {} -> {} (after {})
         if self.last_token_kind == Some({}) {{
@@ -111,7 +157,7 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
         }}
 
 "#,
-                rule.pattern, rule.name, context_token, context_kind, rule.kind, rule.kind
+                pattern_desc, rule.name, context_token, context_kind, rule.kind, rule.kind
             ));
         }
     }
@@ -120,17 +166,23 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
     for rule in &spec.rules {
         if rule.context_token.is_none() && rule.action_code.is_some() {
             let action_code = rule.action_code.as_ref().unwrap();
+            let pattern_desc = pattern_to_regex(&rule.pattern).replace('\n', "\\n").replace('\t', "\\t").replace('\r', "\\r");
             rule_match_code.push_str(&format!(
                 r#"        // Action rule: {} -> {{ {} }}
         if let Some(matched) = self.match_cached_pattern(remaining, {}) {{
             let matched_str = matched.clone();
+            // Create token for action code to use
+            let test_t = Token::new(
+                {},
+                matched_str.clone(),
+                start_row,
+                start_col,
+                matched_str.len(),
+                indent,
+            );
             self.advance(&matched_str);
             // Execute action code with available variables
             let action_result: Option<Token> = {{
-                let matched = &matched_str;
-                let _start_row = start_row;
-                let _start_col = start_col;
-                let _indent = indent;
                 {}
             }};
             if let Some(token) = action_result {{
@@ -143,7 +195,7 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
         }}
 
 "#,
-                rule.pattern, action_code, rule.kind, action_code
+                pattern_desc, action_code, rule.kind, rule.kind, action_code
             ));
         }
     }
@@ -157,6 +209,7 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
                 "self.last_token_kind = Some(token.kind)"
             };
             
+            let pattern_desc = pattern_to_regex(&rule.pattern).replace('\n', "\\n").replace('\t', "\\t").replace('\r', "\\r");
             rule_match_code.push_str(&format!(
                 r#"        // Rule: {} -> {}
         if let Some(matched) = self.match_cached_pattern(remaining, {}) {{
@@ -174,7 +227,7 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
         }}
 
 "#,
-                rule.pattern, rule.name, rule.kind, rule.kind, update_context
+                pattern_desc, rule.name, rule.kind, rule.kind, update_context
             ));
         }
     }

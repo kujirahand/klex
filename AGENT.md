@@ -121,20 +121,23 @@ pub struct Token {
 ```text
 '文字'
 "文字列"
-/正規表現パターン/
+\+ ← エスケープされた特殊文字
+\n ← 改行文字
+? ← 任意の単一文字を表す
+?+ ← 1回以上の任意の単一文字の連続を表す
+[0-9]+ ← 1回以上の単純な文字範囲'A'から'Z'までの連続を表す
+[abc]+ ← 1回以上の文字集合'a'、'b'、'c'のいずれかの連続を表す
+[0-9]* ← 0回以上の単純な文字範囲'A'から'Z'までの連続を表す
+[abc]* ← 0回以上の文字集合'a'、'b'、'c'のいずれかの連続を表す
+/正規表現パターン/ ← 正規表現で複雑なパターンを表現
 ( <規則> | <規則> )  ← 選択肢
-& <規則> <規則> ← 規則をテスト(先読み)してOKなら続く規則をテスト (消費しない) 
-^ <規則> <規則> ← 規則をテスト(先読み)してNGなら続く規則をテスト (消費しない)
 ```
 
 #### アクションコードルール
 
 アクションコードルールは、マッチしたパターンに対してカスタムなRustコードを実行します。アクションコード内では以下の変数が利用可能です：
 
-- `matched: &String` - マッチしたテキスト
-- `_start_row: usize` - マッチした位置の行番号
-- `_start_col: usize` - マッチした位置の列番号  
-- `_indent: usize` - 行頭からのインデント
+- `test_t: Token` - 現在のマッチしたトークン
 
 アクションコードは `Option<Token>` を返す必要があります：
 
@@ -149,20 +152,20 @@ pub struct Token {
 
 ```text
 [0-9]+ -> NUMBER
-[a-zA-Z_][a-zA-Z0-9_]* -> IDENTIFIER
-\+ -> PLUS
-\- -> MINUS
-\* -> MULTIPLY
-/ -> DIVIDE
-\( -> LPAREN
-\) -> RPAREN
-[ \t]+ -> WHITESPACE
+/[a-zA-Z_][a-zA-Z0-9_]*/ -> IDENTIFIER
+'+' -> PLUS
+'-' -> MINUS
+'*' -> MULTIPLY
+'/' -> DIVIDE
+'(' -> LPAREN
+')' -> RPAREN
+/[ \t]+/ -> WHITESPACE
 \n -> NEWLINE
-%IDENTIFIER [0-9]+ -> INDEXED_NUMBER
-%PLUS [0-9]+ -> POSITIVE_NUMBER
+%IDENTIFIER /[0-9]+/ -> INDEXED_NUMBER
+%PLUS /[0-9]+/ -> POSITIVE_NUMBER
 // アクションコード例
 "debug" -> { println!("Debug mode activated!"); None }
-[0-9]+\.[0-9]+ -> { 
+/[0-9]+\.[0-9]+/ -> { 
     let float_val: f64 = matched.parse().unwrap();
     Some(Token::new(FLOAT_TOKEN, matched.clone(), _start_row, _start_col, matched.len(), _indent))
 }

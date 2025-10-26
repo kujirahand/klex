@@ -1,0 +1,37 @@
+// Test for escaped character patterns
+use regex::Regex;
+use std::collections::HashMap;
+
+%%
+// Test new escaped character patterns (must come before whitespace)
+\+ -> PLUS_ESCAPED
+\* -> MULTIPLY_ESCAPED
+\n -> NEWLINE_ESCAPED
+\t -> TAB_ESCAPED
+
+// Test whitespace for separation (space only, not tab)
+' ' -> SPACE
+%%
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_escaped_patterns() {
+        let input = "+*\n\t".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        // Debug: print what tokens we get
+        let mut tokens = Vec::new();
+        while let Some(token) = lexer.next_token() {
+            println!("Token: kind={}, value='{}'", token.kind, token.value.replace("\n", "\\n").replace("\t", "\\t"));
+            tokens.push(token);
+        }
+        
+        // Find specific tokens
+        assert!(tokens.iter().any(|t| t.kind == PLUS_ESCAPED && t.value == "+"));
+        assert!(tokens.iter().any(|t| t.kind == MULTIPLY_ESCAPED && t.value == "*"));
+        assert!(tokens.iter().any(|t| t.kind == NEWLINE_ESCAPED && t.value == "\n"));
+        assert!(tokens.iter().any(|t| t.kind == TAB_ESCAPED && t.value == "\t"));
+    }
+}

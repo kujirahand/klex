@@ -1,0 +1,41 @@
+// Test for any character patterns
+use regex::Regex;
+use std::collections::HashMap;
+
+%%
+// Test whitespace for separation (must come before wildcard patterns)
+/[ \t]+/ -> WHITESPACE
+
+// Test specific characters to avoid conflicts
+'@' -> AT_SYMBOL
+'!' -> EXCLAMATION
+
+// Test new any character patterns (must come last due to greedy matching)
+? -> ANY_CHAR
+?+ -> ANY_CHAR_PLUS
+%%
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_any_char_patterns() {
+        // Test with characters that won't conflict with other patterns
+        let input = "$ ###".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        // Debug: print what tokens we get
+        let mut tokens = Vec::new();
+        while let Some(token) = lexer.next_token() {
+            println!("Token: kind={}, value='{}'", token.kind, token.value);
+            tokens.push(token);
+        }
+        
+        // Find specific tokens
+        assert!(tokens.iter().any(|t| t.kind == ANY_CHAR && t.value == "$"));
+        assert!(tokens.iter().any(|t| t.kind == WHITESPACE && t.value == " "));
+        // ANY_CHAR_PLUS might match the first '#' or all "###" depending on implementation
+        assert!(tokens.iter().any(|t| t.kind == ANY_CHAR && t.value == "#") || 
+                tokens.iter().any(|t| t.kind == ANY_CHAR_PLUS && t.value == "###"));
+    }
+}

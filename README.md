@@ -66,15 +66,34 @@ An input file consists of three sections separated by `%%`:
 Write one rule per line in the following form:
 
 ```
-<regex pattern> -> <TOKEN_NAME>
+<pattern> -> <TOKEN_NAME>
 ```
 
+Supported pattern formats:
+
+- `'c'` - Single character literal
+- `"string"` - String literal
+- `[0-9]+` - Character range with quantifier
+- `[abc]+` - Character set with quantifier
+- `/regex/` - Regular expression pattern
+- `( pattern1 | pattern2 )` - Choice between patterns
+- `\+` - Escaped special characters (`\+`, `\*`, `\n`, `\t`, etc.)
+- `?` - Any single character
+- `?+` - One or more any characters
+
 Examples:
-```
+
+```text
 [0-9]+ -> NUMBER
 [a-zA-Z_][a-zA-Z0-9_]* -> IDENTIFIER
 \+ -> PLUS
 \- -> MINUS
+\n -> NEWLINE
+\t -> TAB
+? -> ANY_CHAR
+?+ -> ANY_CHAR_PLUS
+"hello" -> HELLO
+/[0-9]+\.[0-9]+/ -> FLOAT
 ```
 
 ### Generated Token struct
@@ -91,6 +110,44 @@ struct Token {
     indent: usize,  // indentation width at line start (spaces)
     tag: isize,     // custom tag (defaults to 0)
 }
+```
+
+## Advanced Features
+
+### Escaped Characters
+
+klex supports escaped special characters:
+
+```text
+\+ -> PLUS_ESCAPED    # Matches literal '+'
+\* -> MULTIPLY        # Matches literal '*'
+\n -> NEWLINE         # Matches newline character
+\t -> TAB             # Matches tab character
+```
+
+### Wildcard Patterns
+
+Use wildcard patterns for flexible matching:
+
+```text
+? -> ANY_CHAR         # Matches any single character
+?+ -> ANY_CHAR_PLUS   # Matches one or more characters
+```
+
+### Context-Dependent Rules
+
+Rules can depend on the previous token:
+
+```text
+%IDENTIFIER [0-9]+ -> INDEXED_NUMBER   # Only after IDENTIFIER
+```
+
+### Action Code
+
+Execute custom Rust code when a pattern matches:
+
+```text
+"debug" -> { println!("Debug mode!"); None }
 ```
 
 ## Examples
@@ -118,9 +175,19 @@ while let Some(token) = lexer.next_token() {
 
 ## Tests
 
+Run all tests:
+
 ```bash
 cargo test
 ```
+
+Test files include:
+
+- `tests/example.klex` - Basic lexer example
+- `tests/test_context.klex` - Context-dependent rules
+- `tests/test_new_patterns.klex` - Various pattern types
+- `tests/test_escaped_chars.klex` - Escaped character patterns
+- `tests/test_any_chars.klex` - Wildcard patterns
 
 ## License
 

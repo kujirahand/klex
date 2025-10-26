@@ -6,13 +6,36 @@
 use std::error::Error;
 use std::fmt;
 
+/// Represents different types of rule patterns.
+#[derive(Debug, Clone)]
+pub enum RulePattern {
+    /// Single character literal: 'c'
+    CharLiteral(char),
+    /// String literal: "string"
+    StringLiteral(String),
+    /// Regular expression pattern: /pattern/
+    Regex(String),
+    /// Character range with quantifier: [0-9]+, [a-z]+ etc.
+    CharRange(char, char),
+    /// Character set with quantifier: [abc]+, [xyz]* etc.
+    CharSet(String),
+    /// Choice between patterns: (pattern1 | pattern2)
+    Choice(Vec<RulePattern>),
+    /// Escaped special character: \+, \*, \n, etc.
+    EscapedChar(char),
+    /// Any single character: ?
+    AnyChar,
+    /// One or more any characters: ?+
+    AnyCharPlus,
+}
+
 /// Represents a lexer rule with a pattern and token kind.
 ///
-/// Each rule defines how to match a specific token type using a regular expression pattern.
+/// Each rule defines how to match a specific token type using a pattern.
 /// Rules can optionally depend on a previous token context.
 #[derive(Debug, Clone)]
 pub struct LexerRule {
-    pub pattern: String,
+    pub pattern: RulePattern,
     pub kind: u32,
     pub name: String,
     pub context_token: Option<String>, // Optional context dependency
@@ -24,10 +47,10 @@ impl LexerRule {
     ///
     /// # Arguments
     ///
-    /// * `pattern` - The regular expression pattern to match
+    /// * `pattern` - The pattern to match
     /// * `kind` - The numeric token kind identifier
     /// * `name` - The symbolic name for this token type
-    pub fn new(pattern: String, kind: u32, name: String) -> Self {
+    pub fn new(pattern: RulePattern, kind: u32, name: String) -> Self {
         LexerRule {
             pattern,
             kind,
@@ -41,11 +64,11 @@ impl LexerRule {
     ///
     /// # Arguments
     ///
-    /// * `pattern` - The regular expression pattern to match
+    /// * `pattern` - The pattern to match
     /// * `kind` - The numeric token kind identifier
     /// * `name` - The symbolic name for this token type
     /// * `context_token` - The name of the token that must precede this rule
-    pub fn new_with_context(pattern: String, kind: u32, name: String, context_token: String) -> Self {
+    pub fn new_with_context(pattern: RulePattern, kind: u32, name: String, context_token: String) -> Self {
         LexerRule {
             pattern,
             kind,
@@ -59,9 +82,9 @@ impl LexerRule {
     ///
     /// # Arguments
     ///
-    /// * `pattern` - The regular expression pattern to match
+    /// * `pattern` - The pattern to match
     /// * `action_code` - The Rust code to execute when this pattern matches
-    pub fn new_with_action(pattern: String, action_code: String) -> Self {
+    pub fn new_with_action(pattern: RulePattern, action_code: String) -> Self {
         LexerRule {
             pattern,
             kind: 0, // Action rules don't need a kind
@@ -122,6 +145,120 @@ impl fmt::Display for ParseError {
 }
 
 impl Error for ParseError {}
+
+/// Parses a rule pattern from a string.
+///
+/// Supports various pattern formats:
+/// - 'c' for character literals
+/// - "string" for string literals  
+/// - /regex/ for regular expressions
+/// - (pattern1 | pattern2) for choices
+/// - & pattern1 pattern2 for positive lookahead
+/// - ^ pattern1 pattern2 for negative lookahead
+fn parse_pattern(input: &str) -> Result<RulePattern, ParseError> {
+    let trimmed = input.trim();
+    
+    // Any character plus: ?+
+    if trimmed == "?+" {
+        return Ok(RulePattern::AnyCharPlus);
+    }
+    
+    // Any single character: ?
+    if trimmed == "?" {
+        return Ok(RulePattern::AnyChar);
+    }
+    
+    // Escaped character: \+, \n, etc.
+    if trimmed.starts_with('\\') && trimmed.len() == 2 {
+        let escape_char = trimmed.chars().nth(1).unwrap();
+        let actual_char = match escape_char {
+            'n' => '\n',
+            't' => '\t',
+            'r' => '\r',
+            '\\' => '\\',
+            '+' => '+',
+            '*' => '*',
+            '?' => '?',
+            '(' => '(',
+            ')' => ')',
+            '[' => '[',
+            ']' => ']',
+            '{' => '{',
+            '}' => '}',
+            '|' => '|',
+            '^' => '^',
+            '$' => '$',
+            '.' => '.',
+            c => c, // Pass through other characters as-is
+        };
+        return Ok(RulePattern::EscapedChar(actual_char));
+    }
+    
+    // Character literal: 'c'
+    if trimmed.starts_with('\'') && trimmed.ends_with('\'') && trimmed.len() == 3 {
+        let ch = trimmed.chars().nth(1).unwrap();
+        return Ok(RulePattern::CharLiteral(ch));
+    }
+    
+    // String literal: "string"
+    if trimmed.starts_with('"') && trimmed.ends_with('"') && trimmed.len() >= 2 {
+        let content = &trimmed[1..trimmed.len()-1];
+        return Ok(RulePattern::StringLiteral(content.to_string()));
+    }
+    
+    // Regular expression: /pattern/
+    if trimmed.starts_with('/') && trimmed.ends_with('/') && trimmed.len() >= 2 {
+        let content = &trimmed[1..trimmed.len()-1];
+        return Ok(RulePattern::Regex(content.to_string()));
+    }
+    
+    // Character patterns: [0-9]+, [abc]+, etc.
+    if trimmed.starts_with('[') && trimmed.contains(']') {
+        // Parse bracket pattern
+        let content = &trimmed[1..];
+        if let Some(bracket_pos) = content.find(']') {
+            let pattern_content = &content[..bracket_pos];
+            
+            // Check if it's a character range (contains dash)
+            if pattern_content.contains('-') && pattern_content.len() == 3 {
+                let chars: Vec<char> = pattern_content.chars().collect();
+                if chars.len() == 3 && chars[1] == '-' {
+                    return Ok(RulePattern::CharRange(chars[0], chars[2]));
+                }
+            }
+            
+            // Otherwise, treat as character set
+            // Include the quantifier in the pattern
+            return Ok(RulePattern::CharSet(trimmed.to_string()));
+        }
+    }
+    
+    // Choice: (pattern1 | pattern2)
+    if trimmed.starts_with('(') && trimmed.ends_with(')') {
+        let content = &trimmed[1..trimmed.len()-1];
+        let parts: Vec<&str> = content.split('|').collect();
+        if parts.len() > 1 {
+            let mut patterns = Vec::new();
+            for part in parts {
+                patterns.push(parse_pattern(part.trim())?);
+            }
+            return Ok(RulePattern::Choice(patterns));
+        }
+    }
+    
+    // Positive lookahead: & pattern1 pattern2 (NOT SUPPORTED by Rust regex crate)
+    if trimmed.starts_with("& ") {
+        return Err(ParseError::new("Positive lookahead (& pattern1 pattern2) is not supported by Rust regex crate. Use alternative approach.".to_string()));
+    }
+    
+    // Negative lookahead: ^ pattern1 pattern2 (NOT SUPPORTED by Rust regex crate)
+    if trimmed.starts_with("^ ") {
+        return Err(ParseError::new("Negative lookahead (^ pattern1 pattern2) is not supported by Rust regex crate. Use alternative approach.".to_string()));
+    }
+    
+    // Default: treat as regex pattern for backward compatibility
+    Ok(RulePattern::Regex(trimmed.to_string()))
+}
 
 /// Parses a lexer specification file.
 ///
@@ -197,7 +334,8 @@ pub fn parse_spec(input: &str) -> Result<LexerSpec, Box<dyn Error>> {
                 let parts: Vec<&str> = left_part.splitn(2, ' ').collect();
                 if parts.len() == 2 {
                     let context_token = parts[0].trim().to_string();
-                    let pattern = parts[1].trim().to_string();
+                    let pattern_str = parts[1].trim();
+                    let pattern = parse_pattern(pattern_str)?;
                     spec.rules.push(LexerRule::new_with_context(pattern, kind_counter, token_name, context_token));
                 } else {
                     return Err(Box::new(ParseError::new(
@@ -211,7 +349,8 @@ pub fn parse_spec(input: &str) -> Result<LexerSpec, Box<dyn Error>> {
             }
         } else if let Some(arrow_pos) = line.find("->") {
             // Regular rule: pattern -> name or pattern -> { action_code }
-            let pattern = line[..arrow_pos].trim().to_string();
+            let pattern_str = line[..arrow_pos].trim();
+            let pattern = parse_pattern(pattern_str)?;
             let right_part = line[arrow_pos + 2..].trim();
             
             if right_part.starts_with('{') && right_part.ends_with('}') {
@@ -227,7 +366,8 @@ pub fn parse_spec(input: &str) -> Result<LexerSpec, Box<dyn Error>> {
             }
         } else {
             // Use the pattern as the name
-            let pattern = line.to_string();
+            let pattern_str = line;
+            let pattern = parse_pattern(pattern_str)?;
             let name = format!("TOKEN_{}", kind_counter);
             spec.rules.push(LexerRule::new(pattern, kind_counter, name));
         }
