@@ -1,18 +1,19 @@
 use crate::parser::LexerSpec;
-use std::fs;
+
+// Include the auto-generated template
+include!(concat!(env!("OUT_DIR"), "/template.rs"));
 
 /// Generates Rust code for the lexer (optimized version with regex caching)
-pub fn generate_lexer(spec: &LexerSpec) -> String {
-    // Read the lexer.rs template file
-    let template = fs::read_to_string("src/lexer.rs")
-        .expect("Failed to read src/lexer.rs template file");
+pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
+    // Use the embedded template
+    let template = LEXER_TEMPLATE;
 
-    let mut output = template;
+    let mut output = template.to_string();
 
     // Add prefix code at the beginning
     if !spec.prefix_code.is_empty() {
         let prefix_with_newlines = format!("{}\n\n", spec.prefix_code);
-        output = output.replace("// このファイルは自動生成されます。", &format!("// このファイルは自動生成されます。\n{}", prefix_with_newlines));
+        output = output.replace("// This file is auto-generated.", &format!("// This file is auto-generated.\n{}", prefix_with_newlines));
     }
 
     // Generate token kind constants
@@ -58,6 +59,7 @@ pub fn generate_lexer(spec: &LexerSpec) -> String {
     }
 
     // Replace markers with generated code
+    output = output.replace("///GENERATED_BY", &format!("// Generated from: {}", source_file));
     output = output.replace("////REG_EX_CODE", &regex_code);
     output = output.replace("////RULE_MATCH_CODE", &rule_match_code);
     

@@ -48,7 +48,7 @@ fn main() {
     };
 
     // Generate lexer code
-    let generated_code = generator::generate_lexer(&spec);
+    let generated_code = generator::generate_lexer(&spec, input_file);
 
     // Write output file
     match fs::write(&output_file, generated_code) {
