@@ -1,51 +1,72 @@
 use crate::parser::LexerSpec;
-use crate::template::*;
+use std::fs;
 
 /// Generates Rust code for the lexer (optimized version with regex caching)
 pub fn generate_lexer(spec: &LexerSpec) -> String {
-    let mut output = String::new();
+    // Read the lexer.rs template file
+    let template = fs::read_to_string("src/lexer.rs")
+        .expect("Failed to read src/lexer.rs template file");
 
-    // Add prefix code
+    let mut output = template;
+
+    // Add prefix code at the beginning
     if !spec.prefix_code.is_empty() {
-        output.push_str(&spec.prefix_code);
-        output.push_str("\n\n");
+        let prefix_with_newlines = format!("{}\n\n", spec.prefix_code);
+        output = output.replace("// このファイルは自動生成されます。", &format!("// このファイルは自動生成されます。\n{}", prefix_with_newlines));
     }
-
-    // Add import statements for regex caching
-    output.push_str(IMPORTS_TEMPLATE);
-
-    // Add Token struct
-    output.push_str(TOKEN_STRUCT_TEMPLATE);
 
     // Generate token kind constants
-    output.push_str("// Token kind constants\n");
+    let mut constants = String::new();
+    constants.push_str("// Token kind constants\n");
     for rule in &spec.rules {
-        output.push_str(&format!("pub const {}: u32 = {};\n", rule.name, rule.kind));
+        constants.push_str(&format!("pub const {}: u32 = {};\n", rule.name, rule.kind));
     }
-    output.push_str("pub const UNKNOWN_TOKEN: u32 = u32::MAX; // For unmatched characters\n");
-    output.push_str("\n");
+    constants.push_str("pub const UNKNOWN_TOKEN: u32 = u32::MAX; // For unmatched characters\n\n");
 
-    // Generate the lexer struct (with regex cache)
-    output.push_str(LEXER_STRUCT_TEMPLATE);
-
-    // Generate the optimized constructor with pre-compiled regexes
-    output.push_str(&lexer_constructor_template(&spec.rules));
-
-    output.push_str(NEXT_TOKEN_START_TEMPLATE);
-
-    // Generate pattern matching for each rule (using cached regexes)
+    // Generate regex cache code
+    let mut regex_code = String::new();
+    regex_code.push_str("        // Pre-compile all patterns and store them in cache\n");
     for rule in &spec.rules {
-        output.push_str(&rule_match_template(&rule.pattern, &rule.name, rule.kind));
+        regex_code.push_str(&format!(
+            "        regex_cache.insert({}, Regex::new(r\"^{}\").unwrap());\n",
+            rule.kind, rule.pattern
+        ));
+    }
+    regex_code.push_str("        ");
+
+    // Generate rule matching code
+    let mut rule_match_code = String::new();
+    for rule in &spec.rules {
+        rule_match_code.push_str(&format!(
+            r#"        // Rule: {} -> {}
+        if let Some(matched) = self.match_cached_pattern(remaining, {}) {{
+            let token = Token::new(
+                {},
+                matched.clone(),
+                start_row,
+                start_col,
+                matched.len(),
+                indent,
+            );
+            self.advance(&matched);
+            return Some(token);
+        }}
+
+"#,
+            rule.pattern, rule.name, rule.kind, rule.kind
+        ));
     }
 
-    output.push_str(NEXT_TOKEN_END_TEMPLATE);
-
-    output.push_str(HELPER_METHODS_TEMPLATE);
+    // Replace markers with generated code
+    output = output.replace("////REG_EX_CODE", &regex_code);
+    output = output.replace("////RULE_MATCH_CODE", &rule_match_code);
+    
+    // Insert constants before the Token struct
+    output = output.replace("use regex::Regex;\nuse std::collections::HashMap;\n", &format!("use regex::Regex;\nuse std::collections::HashMap;\n\n{}", constants));
 
     // Add suffix code
     if !spec.suffix_code.is_empty() {
-        output.push_str(&spec.suffix_code);
-        output.push_str("\n");
+        output.push_str(&format!("\n{}\n", spec.suffix_code));
     }
 
     output

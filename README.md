@@ -1,46 +1,48 @@
 # klex (kujira-lexer)
 
-シンプルなLexer（字句解析器）ジェネレーターです。
+A simple lexer (tokenizer) generator for Rust.
 
-## 概要
+English | [日本語はこちら](README-ja.md)
 
-klexは、定義ファイルからRustのLexerコードを自動生成するツールです。正規表現でトークンのパターンを記述でき、自動的にToken構造体とLexer構造体を含むRustコードを出力します。
+## Overview
 
-## インストール
+klex generates Rust lexer code from a single definition file. You describe token patterns with regular expressions, and it outputs Rust source that includes a `Token` struct and a `Lexer` struct.
+
+## Installation
 
 ```bash
 cargo build --release
 ```
 
-## 使い方
+## Usage
 
-### 基本的な使い方
+### Basic
 
 ```bash
-cargo run -- <入力ファイル> [出力ファイル]
+cargo run -- <INPUT_FILE> [OUTPUT_FILE]
 ```
 
-### 入力ファイルの形式
+### Input file format
 
-入力ファイルは3つのセクションから構成され、`%%`で区切ります：
+An input file consists of three sections separated by `%%`:
 
 ```
-(ここにRustのコード - use文など)
+(Rust code here – e.g. use statements)
 %%
-(ここにルール - 正規表現でトークンパターンを記述)
+(Rules here – token patterns written as regular expressions)
 %%
-(ここにRustのコード - main関数やテストなど)
+(Rust code here – e.g. main function or tests)
 ```
 
-### ルールの記述方法
+### Writing rules
 
-各ルールは1行に1つ記述します：
+Write one rule per line in the following form:
 
 ```
-正規表現パターン -> トークン名
+<regex pattern> -> <TOKEN_NAME>
 ```
 
-例：
+Examples:
 ```
 [0-9]+ -> NUMBER
 [a-zA-Z_][a-zA-Z0-9_]* -> IDENTIFIER
@@ -48,35 +50,35 @@ cargo run -- <入力ファイル> [出力ファイル]
 \- -> MINUS
 ```
 
-### 生成されるToken構造体
+### Generated Token struct
 
-生成されるLexerは以下のToken構造体を出力します：
+The generated lexer produces tokens with the following shape:
 
 ```rust
 struct Token {
-    kind: u32,        // トークンの種類（定数で定義される）
-    value: String,    // トークンの文字列値
-    row: usize,       // 行番号（1から開始）
-    col: usize,       // 列番号（1から開始）
-    length: usize,    // トークンの長さ
-    indent: usize,    // インデント（行頭の空白数）
-    tag: isize,       // カスタムタグ（デフォルトは0）
+    kind: u32,      // token kind (defined as constants)
+    value: String,  // matched text
+    row: usize,     // 1-based line number
+    col: usize,     // 1-based column number
+    length: usize,  // token length
+    indent: usize,  // indentation width at line start (spaces)
+    tag: isize,     // custom tag (defaults to 0)
 }
 ```
 
-## 例
+## Examples
 
-`example.klex`ファイルを参照してください。
+See `example.klex` for a minimal definition file.
 
-### Lexerの生成
+### Generate a lexer
 
 ```bash
 cargo run -- example.klex generated_lexer.rs
 ```
 
-### 生成されたLexerの使用
+### Use the generated lexer
 
-生成されたファイルには、`Lexer`構造体と関連する定数が含まれています：
+The generated file exports a `Lexer` struct and related constants:
 
 ```rust
 let input = "123 + abc".to_string();
@@ -87,13 +89,13 @@ while let Some(token) = lexer.next_token() {
 }
 ```
 
-## テスト
+## Tests
 
 ```bash
 cargo test
 ```
 
-## ライセンス
+## License
 
-MITライセンスの下で公開されています。
+MIT License
 
