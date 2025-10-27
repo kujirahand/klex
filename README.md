@@ -13,12 +13,21 @@ klex generates Rust lexer code from a single definition file. You describe token
 ### From crates.io
 
 ```bash
-cargo add klex
+cargo install klex
+```
+
+Or add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+klex = "0.1.2"
 ```
 
 ### From source
 
 ```bash
+git clone https://github.com/kujirahand/klex
+cd klex
 cargo build --release
 ```
 
@@ -131,7 +140,7 @@ Use wildcard patterns for flexible matching:
 
 ```text
 ? -> ANY_CHAR         # Matches any single character
-?+ -> ANY_CHAR_PLUS   # Matches one or more characters
+?+ -> ANY_CHAR_PLUS   # Matches one or more characters (i.e., captures to the end)
 ```
 
 ### Context-Dependent Rules
@@ -152,12 +161,12 @@ Execute custom Rust code when a pattern matches:
 
 ## Examples
 
-See `example.klex` for a minimal definition file.
+See `tests/*.klex` files for definition examples.
 
 ### Generate a lexer
 
 ```bash
-cargo run -- example.klex generated_lexer.rs
+cargo run -- tests/example.klex tests/example_lexer.rs
 ```
 
 ### Use the generated lexer
@@ -178,16 +187,8 @@ while let Some(token) = lexer.next_token() {
 Run all tests:
 
 ```bash
-cargo test
+make test
 ```
-
-Test files include:
-
-- `tests/example.klex` - Basic lexer example
-- `tests/test_context.klex` - Context-dependent rules
-- `tests/test_new_patterns.klex` - Various pattern types
-- `tests/test_escaped_chars.klex` - Escaped character patterns
-- `tests/test_any_chars.klex` - Wildcard patterns
 
 ## License
 

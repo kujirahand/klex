@@ -8,13 +8,49 @@ klexは、定義ファイルからRustのLexerコードを自動生成するツ�
 
 ## インストール
 
+### crates.ioから
+
 ```bash
+cargo install klex
+```
+
+または`Cargo.toml`に追加：
+
+```toml
+[dependencies]
+klex = "0.1.2"
+```
+
+### ソースから
+
+```bash
+git clone https://github.com/kujirahand/klex
+cd klex
 cargo build --release
 ```
 
 ## 使い方
 
-### 基本的な使い方
+### ライブラリとして使用
+
+```rust
+use klex::{generate_lexer, parse_spec};
+use std::fs;
+
+// 入力ファイルを読み込む
+let input = fs::read_to_string("tests/example.klex").expect("Failed to read input file");
+
+// 入力をパースする
+let spec = parse_spec(&input).expect("Failed to parse input");
+
+// Rustコードを生成する
+let output = generate_lexer(&spec, "example.klex");
+
+// 出力を書き込む
+fs::write("output.rs", output).expect("Failed to write output");
+```
+
+### コマンドラインツールとして使用
 
 ```bash
 cargo run -- <入力ファイル> [出力ファイル]
@@ -102,7 +138,7 @@ klexではエスケープされた特殊文字をサポートしています：
 
 ```text
 ? -> ANY_CHAR         # 任意の単一文字にマッチ
-?+ -> ANY_CHAR_PLUS   # 1文字以上の任意文字にマッチ
+?+ -> ANY_CHAR_PLUS   # 1文字以上の任意文字にマッチ(つまり末尾まで取得)
 ```
 
 ### コンテキスト依存ルール
@@ -123,12 +159,12 @@ klexではエスケープされた特殊文字をサポートしています：
 
 ## 例
 
-`example.klex`ファイルを参照してください。
+`tests/*.klex`のファイルを参照してください。
 
 ### Lexerの生成
 
 ```bash
-cargo run -- example.klex generated_lexer.rs
+cargo run -- tests/example.klex tests/example_lexer.rs
 ```
 
 ### 生成されたLexerの使用
@@ -149,16 +185,8 @@ while let Some(token) = lexer.next_token() {
 すべてのテストを実行：
 
 ```bash
-cargo test
+make test
 ```
-
-テストファイルには以下が含まれます：
-
-- `tests/example.klex` - 基本的なレキサーの例
-- `tests/test_context.klex` - コンテキスト依存ルール
-- `tests/test_new_patterns.klex` - 様々なパターンタイプ
-- `tests/test_escaped_chars.klex` - エスケープ文字パターン
-- `tests/test_any_chars.klex` - ワイルドカードパターン
 
 ## ライセンス
 
