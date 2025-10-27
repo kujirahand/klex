@@ -4,15 +4,15 @@ use std::collections::HashMap;
 
 %%
 // Test whitespace for separation (must come before wildcard patterns)
-/[ \t]+/ -> WHITESPACE
+/[ \t]+/ -> Whitespace
 
 // Test specific characters to avoid conflicts
-'@' -> AT_SYMBOL
-'!' -> EXCLAMATION
+'@' -> AtSymbol
+'!' -> Exclamation
 
 // Test new any character patterns (must come last due to greedy matching)
-? -> ANY_CHAR
-?+ -> ANY_CHAR_PLUS
+? -> AnyChar
+?+ -> AnyCharPlus
 %%
 #[cfg(test)]
 mod tests {
@@ -32,10 +32,10 @@ mod tests {
         }
         
         // Find specific tokens
-        assert!(tokens.iter().any(|t| t.kind == ANY_CHAR && t.value == "$"));
-        assert!(tokens.iter().any(|t| t.kind == WHITESPACE && t.value == " "));
-        // ANY_CHAR_PLUS might match the first '#' or all "###" depending on implementation
-        assert!(tokens.iter().any(|t| t.kind == ANY_CHAR && t.value == "#") || 
-                tokens.iter().any(|t| t.kind == ANY_CHAR_PLUS && t.value == "###"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::AnyChar && t.value == "$"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Whitespace && t.value == " "));
+        // AnyCharPlus might match the first '#' or all "###" depending on implementation
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::AnyChar && t.value == "#") || 
+                tokens.iter().any(|t| t.kind == TokenKind::AnyCharPlus && t.value == "###"));
     }
 }

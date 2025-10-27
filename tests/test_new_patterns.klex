@@ -2,37 +2,37 @@ use std::collections::HashMap;
 
 %%
 // Test character literal
-'q' -> CHAR_Q
-'w' -> CHAR_W
+'q' -> CharQ
+'w' -> CharW
 
 // Test string literal  
-"hello" -> HELLO_STRING
-"world" -> WORLD_STRING
+"hello" -> HelloString
+"world" -> WorldString
 
 // Test character range syntax  
-[0-9]+ -> DIGIT_RANGE
-[A-Z]+ -> UPPER_CASE
-[a-z]+ -> LOWER_CASE
+[0-9]+ -> DigitRange
+[A-Z]+ -> UpperCase
+[a-z]+ -> LowerCase
 
 // Test character set syntax
-[abc]+ -> ABC_SET
-[xyz]+ -> XYZ_SET
+[abc]+ -> AbcSet
+[xyz]+ -> XyzSet
 
 // Test regular expression (more specific patterns)
-/[a-zA-Z_][a-zA-Z0-9_]*/ -> IDENTIFIER
+/[a-zA-Z_][a-zA-Z0-9_]*/ -> Identifier
 
 // Test whitespace for separation (must come before other patterns)
-/[ \t]+/ -> WHITESPACE
+/[ \t]+/ -> Whitespace
 
 // Basic escaped character test (complex tests in separate file)
-\+ -> PLUS_ESCAPED
+\+ -> PlusEscaped
 
 // Test choice
-'-' -> MINUS_SIGN
-("true"|"false") -> BOOLEAN
+'-' -> MinusSign
+("true"|"false") -> Boolean
 
 // Basic any character test (complex tests in separate file)
-/[^a-zA-Z0-9 \t\n+x-]/ -> SPECIAL_CHAR
+/[^a-zA-Z0-9 \t\n+x-]/ -> SpecialChar
 
 // Test action with new patterns
 'x' -> { println!("Found x character"); Some(Token::new(TokenKind::Unknown, test_t.value.clone(), test_t.index, test_t.row, test_t.col, test_t.length, test_t.indent)) }
@@ -60,12 +60,12 @@ mod tests {
         }
 
         // Test specific patterns
-        assert!(tokens.iter().any(|t| t.value == "q" && t.kind == TokenKind::CHAR_Q));
-        assert!(tokens.iter().any(|t| t.value == "hello" && t.kind == TokenKind::HELLO_STRING));
-        assert!(tokens.iter().any(|t| t.value == "123" && t.kind == TokenKind::DIGIT_RANGE));
-        assert!(tokens.iter().any(|t| t.value == "ABC" && t.kind == TokenKind::UPPER_CASE));
+        assert!(tokens.iter().any(|t| t.value == "q" && t.kind == TokenKind::CharQ));
+        assert!(tokens.iter().any(|t| t.value == "hello" && t.kind == TokenKind::HelloString));
+        assert!(tokens.iter().any(|t| t.value == "123" && t.kind == TokenKind::DigitRange));
+        assert!(tokens.iter().any(|t| t.value == "ABC" && t.kind == TokenKind::UpperCase));
         // abc matches LOWER_CASE pattern first since it comes before ABC_SET in rule order
-        assert!(tokens.iter().any(|t| t.value == "abc" && t.kind == TokenKind::LOWER_CASE));
+        assert!(tokens.iter().any(|t| t.value == "abc" && t.kind == TokenKind::LowerCase));
     }
     
     #[test]
@@ -84,10 +84,10 @@ mod tests {
         }
         
         // Should match digit range, lower case, upper case, and character sets
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::DIGIT_RANGE));
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::LOWER_CASE));
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::UPPER_CASE));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::DigitRange));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::LowerCase));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::UpperCase));
         // xyz's 'x' matches action rule first, so we check for any LOWER_CASE match
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::LOWER_CASE && (t.value == "def" || t.value == "yz")));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::LowerCase && (t.value == "def" || t.value == "yz")));
     }
 }

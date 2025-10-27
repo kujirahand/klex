@@ -157,31 +157,42 @@ pub struct Token {
 **例**:
 
 ```text
-[0-9]+ -> NUMBER
-/[a-zA-Z_][a-zA-Z0-9_]*/ -> IDENTIFIER
-'+' -> PLUS
-'-' -> MINUS
-'*' -> MULTIPLY
-'/' -> DIVIDE
-'(' -> LPAREN
-')' -> RPAREN
-/[ \t]+/ -> WHITESPACE
-\n -> NEWLINE
-%IDENTIFIER /[0-9]+/ -> INDEXED_NUMBER
-%PLUS /[0-9]+/ -> POSITIVE_NUMBER
+[0-9]+ -> Number
+/[a-zA-Z_][a-zA-Z0-9_]*/ -> ID
+'+' -> Plud
+'-' -> Minus
+/[ \t]+/ -> _
+\n -> Newline
+%ID /[0-9]+/ -> IDNumber
+%Plus /[0-9]+/ -> PositiveNumber
 // アクションコード例
 "debug" -> { println!("Debug mode activated!"); None }
-/[0-9]+\.[0-9]+/ -> { 
-    let float_val: f64 = matched.parse().unwrap();
-    Some(Token::new(FLOAT_TOKEN, matched.clone(), _start_row, _start_col, matched.len(), _indent))
+/[0-9]+\.[0-9]+/ -> {
+    let value = test_t.value.parse::<f64>().unwrap();
+    Some(Token {
+        kind: TokenKind::Float,
+        value: test_t.value,
+        index: test_t.index,
+        row: test_t.row,
+        col: test_t.col,
+        length: test_t.length,
+        indent: test_t.indent,
+        tag: 0,
+    })
 }
 ```
 
-この例では：
+## 生成される中間コード
 
-- `INDEXED_NUMBER`は`IDENTIFIER`トークンの直後にのみマッチし、`POSITIVE_NUMBER`は`PLUS`トークンの直後にのみマッチします
-- `"debug"`はデバッグメッセージを出力してトークンをスキップします
-- 浮動小数点数は値を解析してカスタムトークンを返します
+```rust
+pub enum TokenKind {
+    Number, // [0-9]+
+    ID,     // /[a-zA-Z_][a-zA-Z0-9_]*/
+    Plus,   // '+'
+}
+```
+
+
 
 ## 使用方法
 

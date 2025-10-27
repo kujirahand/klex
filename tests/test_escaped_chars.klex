@@ -4,13 +4,13 @@ use std::collections::HashMap;
 
 %%
 // Test new escaped character patterns (must come before whitespace)
-\+ -> PLUS_ESCAPED
-\* -> MULTIPLY_ESCAPED
-\n -> NEWLINE_ESCAPED
-\t -> TAB_ESCAPED
+\+ -> PlusEscaped
+\* -> MultiplyEscaped
+\n -> NewlineEscaped
+\t -> TabEscaped
 
 // Test whitespace for separation (space only, not tab)
-' ' -> SPACE
+' ' -> Space
 %%
 #[cfg(test)]
 mod tests {
@@ -29,9 +29,9 @@ mod tests {
         }
         
         // Find specific tokens
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::PLUS_ESCAPED && t.value == "+"));
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::MULTIPLY_ESCAPED && t.value == "*"));
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::NEWLINE_ESCAPED && t.value == "\n"));
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::TAB_ESCAPED && t.value == "\t"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::PlusEscaped && t.value == "+"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::MultiplyEscaped && t.value == "*"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::NewlineEscaped && t.value == "\n"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::TabEscaped && t.value == "\t"));
     }
 }
