@@ -2,14 +2,11 @@
 
 ## プロジェクト概要
 
-**klex (kujira-lexer)** は、Rust用のシンプルなレキサー（トークナイザー）ジェネレーターです。定義ファイルから正規表現パターンを使ってトークンパターンを記述し、`Token`構造体と`Lexer`構造体を含むRustソースコードを出力します。
+**klex (kujira-lexer)** は、Rust用のシンプルなレキサー（トークナイザー）ジェネレーターです。定義ファイルから文字列パターン（または正規表現）を使ってトークンパターンを記述し、`Token`構造体と`Lexer`構造体を含むRustソースコードを出力します。
 
 ## 基本情報
 
-- **プロジェクト名**: klex
-- **バージョン**: 0.1.0
-- **言語**: Rust (Edition 2021)
-- **ライセンス**: MIT
+- **プロジェクト名**: klex (kujira-lexer)
 - **作者**: kujirahand
 - **リポジトリ**: <https://github.com/kujirahand/klex>
 
@@ -34,6 +31,14 @@ klex/
 ├── Cargo.toml           # プロジェクト設定
 └── README.md            # プロジェクト説明書
 ```
+
+ビルド時に自動生成される`template.rs`には、`build.rs`によってビルド時に生成され、`src/lexer.rs`をテンプレートとして、そのファイルの内容を文字列リテラルとしてエスケープしたものが格納されます。
+
+#### テストファイル構成
+
+`tests/`ディレクトリには、klexの機能を検証するための複数の`.klex`仕様ファイルと、kelxにより自動生成されたRustテストコードが配置されます。
+
+`tests/*.rs`は自動的に削除されるので、klexファイルにテストを含めてください。
 
 ### 主要コンポーネント
 
@@ -117,6 +122,7 @@ pub struct Token {
 各ルールは以下の形式で記述：
 
 ```text
+%token <CUSTOM_TOKEN_NAME_1> <CUSTOM_TOKEN_NAME_2> ...
 <規則> -> <TOKEN_NAME>
 %<TOKEN_NAME> <規則> -> <TOKEN_NAME>
 <規則> -> { <ACTION_CODE> }
@@ -182,7 +188,7 @@ pub struct Token {
 }
 ```
 
-## 特殊ルール
+### `_`の特殊ルール
 
 `_`というトークン名を使用すると、自動的に`Whitespace`トークンとして扱われます。これにより、空白文字をより簡潔に定義できます。
 
@@ -197,6 +203,36 @@ pub struct Token {
 ```
 
 `Whitespace`および`Newline`トークンは、コンテキスト依存ルールにおいてコンテキストを更新しません。これにより、空白文字を挟んでも前のトークンのコンテキストが保持されます。
+
+### カスタムトークン
+
+アクションコードを使用する際、アクションの結果に応じたカスタムトークンを返すことができます。カスタムトークンを定義する方法は2つあります：
+
+**1. `%token`ディレクティブで明示的に宣言（推奨）**
+
+```
+%token CUSTOM_TOKEN_NAME1 CUSTOM_TOKEN_NAME2 ...
+```
+
+または、カンマ区切りでも記述可能：
+
+```
+%token CUSTOM_TOKEN_NAME1, CUSTOM_TOKEN_NAME2, CUSTOM_TOKEN_NAME3
+```
+
+**2. アクションコード内で直接使用**
+
+アクションコードの中で、`TokenKind::CUSTOM_TOKEN_NAME`を直接使用してトークンを生成することも可能です。この場合、カスタムトークン名は自動的にTokenKind enumに追加されます。
+
+**例**:
+
+```
+%token CustomNumber CustomString
+
+/[0-9]+/ -> { Some(Token::new(TokenKind::CustomNumber, test_t.text.clone(), test_t.index, test_t.row, test_t.col, test_t.length, test_t.indent)) }
+```
+
+`%token`ディレクティブで明示的に宣言すると、トークン名のタイプミスなどのエラーを防ぎやすくなります。
 
 ## 生成される中間コード
 

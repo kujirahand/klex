@@ -76,7 +76,7 @@ pub struct Token {
     /// トークン種別（列挙型として定義）
     pub kind: TokenKind,
     /// マッチしたテキスト
-    pub value: String,
+    pub text: String,
     /// 入力全体に対する0ベースの開始位置
     pub index: usize,
     /// 1ベース行番号
@@ -98,7 +98,7 @@ impl Token {
     /// # Arguments
     ///
     /// * `kind` - The token kind
-    /// * `value` - The matched text
+    /// * `text` - The matched text
     /// * `index` - 0-based start position in the entire input
     /// * `row` - 1-based line number
     /// * `col` - 1-based column number
@@ -110,7 +110,7 @@ impl Token {
     /// A new `Token` instance with `tag` set to 0.
     pub fn new(
         kind: TokenKind,
-        value: String,
+        text: String,
         index: usize,
         row: usize,
         col: usize,
@@ -119,7 +119,7 @@ impl Token {
     ) -> Self {
         Token {
             kind,
-            value,
+            text,
             index,
             row,
             col,

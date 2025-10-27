@@ -18,20 +18,20 @@ mod tests {
 
     #[test]
     fn test_escaped_patterns() {
-        let input = "+*\n\t".to_string();
-        let mut lexer = Lexer::new(input);
+        let input = "+*\n\t";
+        let mut lexer = Lexer::from_str(input);
         
         // Debug: print what tokens we get
         let mut tokens = Vec::new();
         while let Some(token) = lexer.next_token() {
-            println!("Token: kind={:?}, value='{}'", token.kind, token.value.replace("\n", "\\n").replace("\t", "\\t"));
+            println!("Token: kind={:?}, value='{}'", token.kind, token.text.replace("\n", "\\n").replace("\t", "\\t"));
             tokens.push(token);
         }
         
         // Find specific tokens
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::PlusEscaped && t.value == "+"));
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::MultiplyEscaped && t.value == "*"));
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::NewlineEscaped && t.value == "\n"));
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::TabEscaped && t.value == "\t"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::PlusEscaped && t.text == "+"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::MultiplyEscaped && t.text == "*"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::NewlineEscaped && t.text == "\n"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::TabEscaped && t.text == "\t"));
     }
 }

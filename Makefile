@@ -29,7 +29,7 @@ test-full: test-unit test-integration test-generated test-examples
 # Run unit tests only
 test-unit:
 	@echo "Running unit tests..."
-	cargo test --lib
+	@cargo test --lib || (echo "❌ Unit tests failed"; exit 1)
 
 # Run integration tests
 test-integration: generate-lexers
@@ -38,7 +38,7 @@ test-integration: generate-lexers
 		if [ -f "$$lexer_file" ]; then \
 			test_name=$$(basename "$$lexer_file" .rs); \
 			echo "Testing $$test_name..."; \
-			cargo test --test "$$test_name" || echo "⚠️  No tests found for $$test_name"; \
+			cargo test --test "$$test_name" || exit 1; \
 		fi; \
 	done
 
@@ -54,6 +54,7 @@ test-generated: generate-lexers
 				echo "✅ $$file compiles and tests are valid"; \
 			else \
 				echo "❌ $$file has issues"; \
+				exit 1; \
 			fi; \
 		fi; \
 	done
@@ -61,7 +62,7 @@ test-generated: generate-lexers
 # Test with examples and documentation
 test-examples: generate-lexers
 	@echo "Testing examples and documentation..."
-	cargo test --doc
+	@cargo test --doc || (echo "❌ Documentation tests failed"; exit 1)
 
 # Generate lexers from all tests/*.klex files
 generate-lexers: build

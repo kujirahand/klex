@@ -35,7 +35,7 @@ use std::collections::HashMap;
 /[^a-zA-Z0-9 \t\n+x-]/ -> SpecialChar
 
 // Test action with new patterns
-'x' -> { println!("Found x character"); Some(Token::new(TokenKind::Unknown, test_t.value.clone(), test_t.index, test_t.row, test_t.col, test_t.length, test_t.indent)) }
+'x' -> { println!("Found x character"); Some(Token::new(TokenKind::Unknown, test_t.text.clone(), test_t.index, test_t.row, test_t.col, test_t.length, test_t.indent)) }
 %%
 
 #[cfg(test)]
@@ -44,8 +44,8 @@ mod tests {
 
     #[test]
     fn test_new_patterns() {
-        let input = "q hello 123 ABC abc xyz x".to_string();
-        let mut lexer = Lexer::new(input);
+        let input = "q hello 123 ABC abc xyz x";
+        let mut lexer = Lexer::from_str(input);
         
         let mut tokens = Vec::new();
         while let Some(token) = lexer.next_token() {
@@ -56,22 +56,22 @@ mod tests {
         assert!(!tokens.is_empty());
         println!("Generated {} tokens", tokens.len());
         for token in &tokens {
-            println!("Token: kind={:?}, value='{}'", token.kind, token.value);
+            println!("Token: kind={:?}, value='{}'", token.kind, token.text);
         }
 
         // Test specific patterns
-        assert!(tokens.iter().any(|t| t.value == "q" && t.kind == TokenKind::CharQ));
-        assert!(tokens.iter().any(|t| t.value == "hello" && t.kind == TokenKind::HelloString));
-        assert!(tokens.iter().any(|t| t.value == "123" && t.kind == TokenKind::DigitRange));
-        assert!(tokens.iter().any(|t| t.value == "ABC" && t.kind == TokenKind::UpperCase));
+        assert!(tokens.iter().any(|t| t.text == "q" && t.kind == TokenKind::CharQ));
+        assert!(tokens.iter().any(|t| t.text == "hello" && t.kind == TokenKind::HelloString));
+        assert!(tokens.iter().any(|t| t.text == "123" && t.kind == TokenKind::DigitRange));
+        assert!(tokens.iter().any(|t| t.text == "ABC" && t.kind == TokenKind::UpperCase));
         // abc matches LOWER_CASE pattern first since it comes before ABC_SET in rule order
-        assert!(tokens.iter().any(|t| t.value == "abc" && t.kind == TokenKind::LowerCase));
+        assert!(tokens.iter().any(|t| t.text == "abc" && t.kind == TokenKind::LowerCase));
     }
     
     #[test]
     fn test_character_ranges_and_sets() {
-        let input = "123 def XYZ xyz".to_string();
-        let mut lexer = Lexer::new(input);
+        let input = "123 def XYZ xyz";
+        let mut lexer = Lexer::from_str(input);
         
         let mut tokens = Vec::new();
         while let Some(token) = lexer.next_token() {
@@ -80,7 +80,7 @@ mod tests {
         
         println!("Character ranges test tokens:");
         for token in &tokens {
-            println!("Token: kind={:?}, value='{}'", token.kind, token.value);
+            println!("Token: kind={:?}, value='{}'", token.kind, token.text);
         }
         
         // Should match digit range, lower case, upper case, and character sets
@@ -88,6 +88,6 @@ mod tests {
         assert!(tokens.iter().any(|t| t.kind == TokenKind::LowerCase));
         assert!(tokens.iter().any(|t| t.kind == TokenKind::UpperCase));
         // xyz's 'x' matches action rule first, so we check for any LOWER_CASE match
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::LowerCase && (t.value == "def" || t.value == "yz")));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::LowerCase && (t.text == "def" || t.text == "yz")));
     }
 }

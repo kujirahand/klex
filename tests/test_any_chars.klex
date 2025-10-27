@@ -21,21 +21,21 @@ mod tests {
     #[test]
     fn test_any_char_patterns() {
         // Test with characters that won't conflict with other patterns
-        let input = "$ ###".to_string();
-        let mut lexer = Lexer::new(input);
+        let input = "$ ###";
+        let mut lexer = Lexer::from_str(input);
         
         // Debug: print what tokens we get
         let mut tokens = Vec::new();
         while let Some(token) = lexer.next_token() {
-            println!("Token: kind={:?}, value='{}'", token.kind, token.value);
+            println!("Token: kind={:?}, value='{}'", token.kind, token.text);
             tokens.push(token);
         }
         
         // Find specific tokens
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::AnyChar && t.value == "$"));
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::Whitespace && t.value == " "));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::AnyChar && t.text == "$"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Whitespace && t.text == " "));
         // AnyCharPlus might match the first '#' or all "###" depending on implementation
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::AnyChar && t.value == "#") || 
-                tokens.iter().any(|t| t.kind == TokenKind::AnyCharPlus && t.value == "###"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::AnyChar && t.text == "#") || 
+                tokens.iter().any(|t| t.kind == TokenKind::AnyCharPlus && t.text == "###"));
     }
 }

@@ -4,9 +4,38 @@
 //! from a parsed lexer specification.
 
 use crate::parser::{LexerSpec, RulePattern};
+use std::collections::HashSet;
 
 // Include the auto-generated template
 include!(concat!(env!("OUT_DIR"), "/template.rs"));
+
+/// Extracts custom token names from action code.
+/// Finds all occurrences of `TokenKind::Name` in the action code.
+fn extract_custom_tokens(action_code: &str) -> HashSet<String> {
+    let mut tokens = HashSet::new();
+    let pattern = "TokenKind::";
+    
+    for (i, _) in action_code.match_indices(pattern) {
+        let start = i + pattern.len();
+        let remaining = &action_code[start..];
+        
+        // Extract the identifier after TokenKind::
+        let end = remaining
+            .chars()
+            .take_while(|c| c.is_alphanumeric() || *c == '_')
+            .count();
+        
+        if end > 0 {
+            let token_name = &remaining[..end];
+            // Skip common enum variants that are always present
+            if token_name != "Unknown" && token_name != "Eof" {
+                tokens.insert(token_name.to_string());
+            }
+        }
+    }
+    
+    tokens
+}
 
 /// Converts a RulePattern to a regular expression string.
 fn pattern_to_regex(pattern: &RulePattern) -> String {
@@ -26,6 +55,14 @@ fn pattern_to_regex(pattern: &RulePattern) -> String {
         RulePattern::CharSet(char_set_pattern) => {
             // Use character set pattern as-is (it's already a valid regex)
             char_set_pattern.clone()
+        }
+        RulePattern::CharRangeMatch1(start, end) => {
+            // One or more character range: [start-end]+
+            format!("[{}-{}]+", start, end)
+        }
+        RulePattern::CharRangeMatch0(start, end) => {
+            // Zero or more character range: [start-end]*
+            format!("[{}-{}]*", start, end)
         }
         RulePattern::Choice(patterns) => {
             // Create alternation: (pattern1|pattern2|...)
@@ -106,6 +143,33 @@ fn generate_pattern_match_code(pattern: &RulePattern, rule_name: &str) -> (Strin
             // Match one or more characters (except newline) - needs regex for simplicity
             (format!("self.match_cached_pattern(remaining, TokenKind::{})", rule_name), true)
         }
+        RulePattern::CharRangeMatch1(start, end) => {
+            // Character range with one or more matches - optimized direct matching
+            let code = format!(
+                "{{
+            let mut matched = String::new();
+            let mut chars = remaining.chars();
+            while let Some(ch) = chars.next() {{
+                if ch >= '{}' && ch <= '{}' {{
+                    matched.push(ch);
+                }} else {{
+                    break;
+                }}
+            }}
+            if !matched.is_empty() {{
+                Some(matched)
+            }} else {{
+                None
+            }}
+        }}",
+                start, end
+            );
+            (code, false) // false = doesn't need regex
+        }
+        RulePattern::CharRangeMatch0(_start, _end) => {
+            // Character range with zero or more matches - needs regex for proper implementation
+            (format!("self.match_cached_pattern(remaining, TokenKind::{})", rule_name), true)
+        }
         RulePattern::Regex(_) | RulePattern::CharSet(_) | RulePattern::Choice(_) => {
             // Complex patterns need regex
             (format!("self.match_cached_pattern(remaining, TokenKind::{})", rule_name), true)
@@ -166,14 +230,45 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
 
     // Generate TokenKind enum variants
     let mut token_kind_variants = String::new();
+    let mut all_token_names = HashSet::new();
+    
+    // Collect token names from rules
     for rule in &spec.rules {
         if rule.action_code.is_none() && !rule.name.is_empty() {
-            // Generate comment showing the original rule pattern
+            // Skip Unknown and Eof as they are always added automatically
+            if rule.name != "Unknown" && rule.name != "Eof" {
+                all_token_names.insert(rule.name.clone());
+            }
+        }
+    }
+    
+    // Add explicitly declared custom tokens from %token directive
+    for token_name in &spec.custom_tokens {
+        if token_name != "Unknown" && token_name != "Eof" {
+            all_token_names.insert(token_name.clone());
+        }
+    }
+    
+    // Collect custom token names from action code
+    for rule in &spec.rules {
+        if let Some(action_code) = &rule.action_code {
+            let custom_tokens = extract_custom_tokens(action_code);
+            all_token_names.extend(custom_tokens);
+        }
+    }
+    
+    // Generate variants for all collected tokens
+    for token_name in &all_token_names {
+        // Find the rule that defines this token to get pattern description
+        if let Some(rule) = spec.rules.iter().find(|r| &r.name == token_name) {
             let pattern_desc = pattern_to_regex(&rule.pattern)
                 .replace('\n', "\\n")
                 .replace('\t', "\\t")
                 .replace('\r', "\\r");
-            token_kind_variants.push_str(&format!("\t{}, // {}\n", rule.name, pattern_desc));
+            token_kind_variants.push_str(&format!("\t{}, // {}\n", token_name, pattern_desc));
+        } else {
+            // Custom token without a pattern (used only in action code or %token directive)
+            token_kind_variants.push_str(&format!("\t{}, // Custom token\n", token_name));
         }
     }
 
@@ -335,11 +430,9 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
     to_string_method.push_str("\tpub fn to_string(&self) -> String {\n");
     to_string_method.push_str("\t\tmatch self.kind {\n");
     
-    // Add cases for each defined token
-    for rule in &spec.rules {
-        if rule.action_code.is_none() && !rule.name.is_empty() {
-            to_string_method.push_str(&format!("\t\t\tTokenKind::{} => \"{}\".to_string(),\n", rule.name, rule.name));
-        }
+    // Add cases for all collected tokens (including custom tokens)
+    for token_name in &all_token_names {
+        to_string_method.push_str(&format!("\t\t\tTokenKind::{} => \"{}\".to_string(),\n", token_name, token_name));
     }
     
     // Add case for Unknown

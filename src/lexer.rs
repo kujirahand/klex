@@ -19,7 +19,7 @@ pub struct Token {
 	/// Token type identifier
 	pub kind: TokenKind,
 	/// Actual string value of the token
-	pub value: String,
+	pub text: String,
 	/// 0-based start position in the entire input
 	pub index: usize,
 	/// Row number where the token appears (1-based)
@@ -37,10 +37,10 @@ pub struct Token {
 impl Token {
 	/// Creates a new token with the specified parameters
 	/// The tag field is initialized to 0
-	pub fn new(kind: TokenKind, value: String, index: usize, row: usize, col: usize, length: usize, indent: usize) -> Self {
+	pub fn new(kind: TokenKind, text: String, index: usize, row: usize, col: usize, length: usize, indent: usize) -> Self {
 		Token {
 			kind,
-			value,
+			text,
 			index,
 			row,
 			col,
@@ -57,17 +57,17 @@ impl Token {
 /// Parses input strings and generates tokens
 pub struct Lexer {
 	/// Input string to be analyzed
-	input: String,
+	pub input: String,
 	/// Current parsing position (in bytes)
-	pos: usize,
+	pub pos: usize,
 	/// Current row number (1-based)
-	row: usize,
+	pub row: usize,
 	/// Current column number (1-based)
-	col: usize,
+	pub col: usize,
 	/// Regular expression cache (for performance optimization)
-	regex_cache: HashMap<u32, Regex>,
+	pub regex_cache: HashMap<u32, Regex>,
 	/// Type of the last generated token
-	last_token_kind: Option<TokenKind>,
+	pub last_token_kind: Option<TokenKind>,
 }
 
 impl Lexer {
@@ -75,6 +75,7 @@ impl Lexer {
 	/// Initializes the position to the beginning and sets up regex cache
 	pub fn new(input: String) -> Self {
 		let mut regex_cache = HashMap::new();
+		regex_cache.insert(u32::MAX, Regex::new("__Unknown__").unwrap());
 		//----<REG_EX_CODE>----
 		Lexer {
 			input,
@@ -84,6 +85,12 @@ impl Lexer {
 			regex_cache,
 			last_token_kind: None,
 		}
+	}
+
+	/// Creates a new lexer instance from a string slice
+	/// This is a convenience method that converts &str to String
+	pub fn from_str(input: &str) -> Self {
+		Self::new(input.to_string())
 	}
 
 	/// Returns the next token from the input string
@@ -114,7 +121,7 @@ impl Lexer {
 
 	/// Calculates the indentation level of the current line
 	/// Returns the number of spaces from the beginning of the line
-	fn calculate_line_indent(&self) -> usize {
+	pub fn calculate_line_indent(&self) -> usize {
 		// Find the start of the current line
 		let mut line_start = 0;
 		let mut pos = 0;
@@ -134,7 +141,7 @@ impl Lexer {
 
 	/// Attempts to match a cached regex pattern against the input
 	/// Returns the matched string if found, None otherwise
-	fn match_cached_pattern(&self, input: &str, token_kind: TokenKind) -> Option<String> {
+	pub fn match_cached_pattern(&self, input: &str, token_kind: TokenKind) -> Option<String> {
 		if let Some(regex) = self.regex_cache.get(&(token_kind as u32)) {
 			if let Some(mat) = regex.find(input) {
 				return Some(mat.as_str().to_string());

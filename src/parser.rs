@@ -18,6 +18,10 @@ pub enum RulePattern {
     Regex(String),
     /// Character set with quantifier: [abc]+, [xyz]* etc.
     CharSet(String),
+    /// Character range with one or more matches: [0-9]+, [a-z]+
+    CharRangeMatch1(char, char),
+    /// Character range with zero or more matches: [0-9]*, [a-z]*
+    CharRangeMatch0(char, char),
     /// Choice between patterns: (pattern1 | pattern2)
     Choice(Vec<RulePattern>),
     /// Escaped special character: \+, \*, \n, etc.
@@ -105,11 +109,13 @@ impl LexerRule {
 /// - Prefix code (Rust code to include at the beginning)
 /// - Lexer rules (pattern -> token mappings)
 /// - Suffix code (Rust code to include at the end)
+/// - Custom tokens (explicitly declared with %token directive)
 #[derive(Debug)]
 pub struct LexerSpec {
     pub prefix_code: String,
     pub rules: Vec<LexerRule>,
     pub suffix_code: String,
+    pub custom_tokens: Vec<String>,
 }
 
 impl LexerSpec {
@@ -119,6 +125,7 @@ impl LexerSpec {
             prefix_code: String::new(),
             rules: Vec::new(),
             suffix_code: String::new(),
+            custom_tokens: Vec::new(),
         }
     }
 }
@@ -222,6 +229,25 @@ fn parse_pattern(input: &str) -> Result<RulePattern, ParseError> {
     // Character patterns: [0-9]+, [abc]+, [a-z]* etc.
     if trimmed.starts_with('[') && trimmed.contains(']') {
         // Parse bracket pattern
+        // Check for simple range patterns like [0-9]+ or [a-z]*
+        if let Some(closing_bracket) = trimmed.find(']') {
+            let inside = &trimmed[1..closing_bracket];
+            let quantifier = &trimmed[closing_bracket + 1..];
+            
+            // Check if it's a simple range like "0-9" or "a-z"
+            if inside.len() == 3 && inside.chars().nth(1) == Some('-') {
+                let start_char = inside.chars().nth(0).unwrap();
+                let end_char = inside.chars().nth(2).unwrap();
+                
+                match quantifier {
+                    "+" => return Ok(RulePattern::CharRangeMatch1(start_char, end_char)),
+                    "*" => return Ok(RulePattern::CharRangeMatch0(start_char, end_char)),
+                    _ => {} // Fall through to CharSet for other quantifiers
+                }
+            }
+        }
+        
+        // For more complex patterns, use CharSet
         return Ok(RulePattern::CharSet(trimmed.to_string()));
     }
 
@@ -303,6 +329,23 @@ pub fn parse_spec(input: &str) -> Result<LexerSpec, Box<dyn Error>> {
     for line in rules_section.lines() {
         let line = line.trim();
         if line.is_empty() || line.starts_with("//") {
+            continue;
+        }
+
+        // Check for %token directive
+        if line.starts_with("%token") {
+            // Extract custom token names: %token TOKEN1 TOKEN2 TOKEN3
+            // or %token TOKEN1, TOKEN2, TOKEN3
+            let tokens_part = line[6..].trim(); // Remove "%token"
+            
+            // Split by whitespace and/or commas
+            let token_names_list: Vec<String> = tokens_part
+                .split(|c: char| c.is_whitespace() || c == ',')
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string())
+                .collect();
+            
+            spec.custom_tokens.extend(token_names_list);
             continue;
         }
 

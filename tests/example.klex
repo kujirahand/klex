@@ -21,19 +21,19 @@ mod tests {
 
     #[test]
     fn test_lexer() {
-        let input = "123 + abc".to_string();
-        let mut lexer = Lexer::new(input);
+        let input = "123 + abc";
+        let mut lexer = Lexer::from_str(input);
         
         let token = lexer.next_token().unwrap();
         assert_eq!(token.kind, TokenKind::Number);
-        assert_eq!(token.value, "123");
+        assert_eq!(token.text, "123");
         
         let token = lexer.next_token().unwrap();
         assert_eq!(token.kind, TokenKind::Whitespace);
         
         let token = lexer.next_token().unwrap();
         assert_eq!(token.kind, TokenKind::Plus);
-        assert_eq!(token.value, "+");
+        assert_eq!(token.text, "+");
     }
 }
 

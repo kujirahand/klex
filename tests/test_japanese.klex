@@ -26,45 +26,45 @@ mod tests {
     #[test]
     fn test_hiragana() {
         // Test hiragana characters
-        let input = "ひらがな".to_string();
-        let mut lexer = Lexer::new(input);
+        let input = "ひらがな";
+        let mut lexer = Lexer::from_str(input);
         
         let token = lexer.next_token().unwrap();
         assert_eq!(token.kind, TokenKind::Hiragana);
-        assert_eq!(token.value, "ひらがな");
+        assert_eq!(token.text, "ひらがな");
     }
 
     #[test]
     fn test_katakana() {
         // Test katakana characters
-        let input = "カタカナ".to_string();
-        let mut lexer = Lexer::new(input);
+        let input = "カタカナ";
+        let mut lexer = Lexer::from_str(input);
         
         let token = lexer.next_token().unwrap();
         assert_eq!(token.kind, TokenKind::Katakana);
-        assert_eq!(token.value, "カタカナ");
+        assert_eq!(token.text, "カタカナ");
     }
 
     #[test]
     fn test_kanji() {
         // Test kanji characters
-        let input = "漢字".to_string();
-        let mut lexer = Lexer::new(input);
+        let input = "漢字";
+        let mut lexer = Lexer::from_str(input);
         
         let token = lexer.next_token().unwrap();
         assert_eq!(token.kind, TokenKind::Kanji);
-        assert_eq!(token.value, "漢字");
+        assert_eq!(token.text, "漢字");
     }
 
     #[test]
     fn test_mixed_japanese() {
         // Test mixed Japanese text
-        let input = "これはカタカナと漢字のテスト".to_string();
-        let mut lexer = Lexer::new(input);
+        let input = "これはカタカナと漢字のテスト";
+        let mut lexer = Lexer::from_str(input);
         
         let mut tokens = Vec::new();
         while let Some(token) = lexer.next_token() {
-            println!("Token: kind={:?}, value='{}'", token.kind, token.value);
+            println!("Token: kind={:?}, value='{}'", token.kind, token.text);
             tokens.push(token);
         }
         
@@ -77,82 +77,82 @@ mod tests {
     #[test]
     fn test_japanese_with_numbers() {
         // Test Japanese with numbers
-        let input = "令和5年".to_string();
-        let mut lexer = Lexer::new(input);
+        let input = "令和5年";
+        let mut lexer = Lexer::from_str(input);
         
         let mut tokens = Vec::new();
         while let Some(token) = lexer.next_token() {
-            println!("Token: kind={:?}, value='{}'", token.kind, token.value);
+            println!("Token: kind={:?}, value='{}'", token.kind, token.text);
             tokens.push(token);
         }
         
         // Should have kanji and number tokens
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::Kanji && t.value == "令和"));
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::Number && t.value == "5"));
-        assert!(tokens.iter().any(|t| t.kind == TokenKind::Kanji && t.value == "年"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Kanji && t.text == "令和"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Number && t.text == "5"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Kanji && t.text == "年"));
     }
 
     #[test]
     fn test_japanese_with_spaces() {
         // Test Japanese with whitespace
-        let input = "こんにちは 世界".to_string();
-        let mut lexer = Lexer::new(input);
+        let input = "こんにちは 世界";
+        let mut lexer = Lexer::from_str(input);
         
         let token1 = lexer.next_token().unwrap();
         assert_eq!(token1.kind, TokenKind::Hiragana);
-        assert_eq!(token1.value, "こんにちは");
+        assert_eq!(token1.text, "こんにちは");
         
         let token2 = lexer.next_token().unwrap();
         assert_eq!(token2.kind, TokenKind::Whitespace);
         
         let token3 = lexer.next_token().unwrap();
         assert_eq!(token3.kind, TokenKind::Kanji);
-        assert_eq!(token3.value, "世界");
+        assert_eq!(token3.text, "世界");
     }
 
     #[test]
     fn test_all_japanese_character_types() {
         // Test all three Japanese character types together
-        let input = "あいうえお アイウエオ 人類愛".to_string();
-        let mut lexer = Lexer::new(input);
+        let input = "あいうえお アイウエオ 人類愛";
+        let mut lexer = Lexer::from_str(input);
         
         let token1 = lexer.next_token().unwrap();
         assert_eq!(token1.kind, TokenKind::Hiragana);
-        assert_eq!(token1.value, "あいうえお");
+        assert_eq!(token1.text, "あいうえお");
         
         let _ws1 = lexer.next_token().unwrap(); // whitespace
         
         let token2 = lexer.next_token().unwrap();
         assert_eq!(token2.kind, TokenKind::Katakana);
-        assert_eq!(token2.value, "アイウエオ");
+        assert_eq!(token2.text, "アイウエオ");
         
         let _ws2 = lexer.next_token().unwrap(); // whitespace
         
         let token3 = lexer.next_token().unwrap();
         assert_eq!(token3.kind, TokenKind::Kanji);
-        assert_eq!(token3.value, "人類愛");
+        assert_eq!(token3.text, "人類愛");
     }
 
     #[test]
     fn test_emoji_emoticons() {
         // Test emoji emoticons (face emojis)
-        let input = "😀😃😄".to_string();
-        let mut lexer = Lexer::new(input);
+        let input = "😀😃😄";
+        let mut lexer = Lexer::from_str(input);
         
         let token = lexer.next_token().unwrap();
         assert_eq!(token.kind, TokenKind::EmojiEmoticons);
-        assert_eq!(token.value, "😀😃😄");
+        assert_eq!(token.text, "😀😃😄");
     }
 
     #[test]
     fn test_emoji_symbols() {
         // Test emoji symbols (weather, nature, etc.)
-        let input = "🌞🌙⭐".to_string();
-        let mut lexer = Lexer::new(input);
+        let input = "🌞🌙⭐";
+        let mut lexer = Lexer::from_str(input);
         
         let mut tokens = Vec::new();
         while let Some(token) = lexer.next_token() {
-            println!("Token: kind={:?}, value='{}'", token.kind, token.value);
+            println!("Token: kind={:?}, value='{}'", token.kind, token.text);
             tokens.push(token);
         }
         
@@ -163,23 +163,23 @@ mod tests {
     #[test]
     fn test_emoji_transport() {
         // Test emoji transport symbols
-        let input = "🚀🚁🚂".to_string();
-        let mut lexer = Lexer::new(input);
+        let input = "🚀🚁🚂";
+        let mut lexer = Lexer::from_str(input);
         
         let token = lexer.next_token().unwrap();
         assert_eq!(token.kind, TokenKind::EmojiTransport);
-        assert_eq!(token.value, "🚀🚁🚂");
+        assert_eq!(token.text, "🚀🚁🚂");
     }
 
     #[test]
     fn test_japanese_with_emoji() {
         // Test Japanese text mixed with emojis
-        let input = "こんにちは😀世界🌍".to_string();
-        let mut lexer = Lexer::new(input);
+        let input = "こんにちは😀世界🌍";
+        let mut lexer = Lexer::from_str(input);
         
         let mut tokens = Vec::new();
         while let Some(token) = lexer.next_token() {
-            println!("Token: kind={:?}, value='{}'", token.kind, token.value);
+            println!("Token: kind={:?}, value='{}'", token.kind, token.text);
             tokens.push(token);
         }
         
@@ -198,12 +198,12 @@ mod tests {
     #[test]
     fn test_emoji_with_text() {
         // Test emoji mixed with various text types
-        let input = "Hello 😊 こんにちは 🎉 カタカナ ✨".to_string();
-        let mut lexer = Lexer::new(input);
+        let input = "Hello 😊 こんにちは 🎉 カタカナ ✨";
+        let mut lexer = Lexer::from_str(input);
         
         let mut tokens = Vec::new();
         while let Some(token) = lexer.next_token() {
-            println!("Token: kind={:?}, value='{}'", token.kind, token.value);
+            println!("Token: kind={:?}, value='{}'", token.kind, token.text);
             tokens.push(token);
         }
         
@@ -220,12 +220,12 @@ mod tests {
     #[test]
     fn test_multiple_emoji_types() {
         // Test different types of emojis together
-        let input = "😀🌟🚀".to_string();
-        let mut lexer = Lexer::new(input);
+        let input = "😀🌟🚀";
+        let mut lexer = Lexer::from_str(input);
         
         let mut tokens = Vec::new();
         while let Some(token) = lexer.next_token() {
-            println!("Token: kind={:?}, value='{}'", token.kind, token.value);
+            println!("Token: kind={:?}, value='{}'", token.kind, token.text);
             tokens.push(token);
         }
         
