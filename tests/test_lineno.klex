@@ -1,0 +1,196 @@
+//
+// 行番号のテスト
+// 複数行にわたるトークンの行番号を正しく追跡できるかテストする
+//
+
+%%
+// 数字
+[0-9]+ -> Number
+
+// 識別子
+[a-zA-Z_][a-zA-Z0-9_]* -> Identifier
+
+// 演算子
+'+' -> Plus
+'-' -> Minus
+
+// 空白とタブ
+[ \t]+ -> Whitespace
+
+// 改行
+\n -> Newline
+
+// その他
+/./ -> Unknown
+%%
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_single_line_tokens() {
+        // 1行目のトークンの行番号をテスト
+        let mut lexer = Lexer::from_str("123 + abc");
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Number);
+        assert_eq!(token.text, "123");
+        assert_eq!(token.row, 1, "Number token should be on row 1");
+        assert_eq!(token.col, 1, "Number token should start at col 1");
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Whitespace);
+        assert_eq!(token.row, 1, "Whitespace should be on row 1");
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Plus);
+        assert_eq!(token.row, 1, "Plus token should be on row 1");
+        assert_eq!(token.col, 5, "Plus token should be at col 5");
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Whitespace);
+        assert_eq!(token.row, 1, "Whitespace should be on row 1");
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Identifier);
+        assert_eq!(token.text, "abc");
+        assert_eq!(token.row, 1, "Identifier should be on row 1");
+        assert_eq!(token.col, 7, "Identifier should start at col 7");
+    }
+
+    #[test]
+    fn test_multi_line_tokens() {
+        // 複数行にわたるトークンの行番号をテスト
+        let input = "abc\n123\nxyz";
+        let mut lexer = Lexer::from_str(input);
+        
+        // 1行目: abc
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Identifier);
+        assert_eq!(token.text, "abc");
+        assert_eq!(token.row, 1, "First identifier should be on row 1");
+        assert_eq!(token.col, 1, "First identifier should start at col 1");
+        
+        // 改行
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Newline);
+        assert_eq!(token.row, 1, "Newline should be counted on row 1");
+        
+        // 2行目: 123
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Number);
+        assert_eq!(token.text, "123");
+        assert_eq!(token.row, 2, "Number should be on row 2");
+        assert_eq!(token.col, 1, "Number should start at col 1 of row 2");
+        
+        // 改行
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Newline);
+        assert_eq!(token.row, 2, "Second newline should be counted on row 2");
+        
+        // 3行目: xyz
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Identifier);
+        assert_eq!(token.text, "xyz");
+        assert_eq!(token.row, 3, "Second identifier should be on row 3");
+        assert_eq!(token.col, 1, "Second identifier should start at col 1 of row 3");
+    }
+
+    #[test]
+    fn test_multiple_newlines() {
+        // 連続する改行の行番号をテスト
+        let input = "a\n\n\nb";
+        let mut lexer = Lexer::from_str(input);
+        
+        // 1行目: a
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Identifier);
+        assert_eq!(token.text, "a");
+        assert_eq!(token.row, 1);
+        
+        // 1行目の改行
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Newline);
+        assert_eq!(token.row, 1);
+        
+        // 2行目の改行
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Newline);
+        assert_eq!(token.row, 2);
+        
+        // 3行目の改行
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Newline);
+        assert_eq!(token.row, 3);
+        
+        // 4行目: b
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Identifier);
+        assert_eq!(token.text, "b");
+        assert_eq!(token.row, 4, "After 3 newlines, should be on row 4");
+        assert_eq!(token.col, 1);
+    }
+
+    #[test]
+    fn test_column_tracking() {
+        // カラム位置の追跡をテスト
+        let input = "a + b - c";
+        let mut lexer = Lexer::from_str(input);
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Identifier);
+        assert_eq!(token.text, "a");
+        assert_eq!(token.col, 1);
+        
+        let _ws = lexer.next_token().unwrap(); // whitespace
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Plus);
+        assert_eq!(token.col, 3);
+        
+        let _ws = lexer.next_token().unwrap(); // whitespace
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Identifier);
+        assert_eq!(token.text, "b");
+        assert_eq!(token.col, 5);
+        
+        let _ws = lexer.next_token().unwrap(); // whitespace
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Minus);
+        assert_eq!(token.col, 7);
+        
+        let _ws = lexer.next_token().unwrap(); // whitespace
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Identifier);
+        assert_eq!(token.text, "c");
+        assert_eq!(token.col, 9);
+    }
+
+    #[test]
+    fn test_index_tracking() {
+        // インデックス位置の追跡をテスト
+        let input = "abc\n123";
+        let mut lexer = Lexer::from_str(input);
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Identifier);
+        assert_eq!(token.text, "abc");
+        assert_eq!(token.index, 0, "First token should start at index 0");
+        assert_eq!(token.length, 3, "abc has length 3");
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Newline);
+        assert_eq!(token.index, 3, "Newline should be at index 3");
+        assert_eq!(token.length, 1, "Newline has length 1");
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Number);
+        assert_eq!(token.text, "123");
+        assert_eq!(token.index, 4, "Number should start at index 4");
+        assert_eq!(token.length, 3, "123 has length 3");
+    }
+}

@@ -1,0 +1,151 @@
+// Lexer definition for basic arithmetic operations
+// Tokenizes numbers and operators
+
+%%
+%token Number
+
+[0-9]+ -> { let mut token = Token::new(TokenKind::Number, test_t.text.clone(), test_t.index, test_t.row, test_t.col, test_t.length, test_t.indent); token.tag = test_t.text.parse::<isize>().unwrap_or(0); Some(token) }
+'+' -> Plus
+'-' -> Minus
+'*' -> Multiply
+'/' -> Divide
+'(' -> LParen
+')' -> RParen
+[ \t]+ -> Whitespace
+\n -> Newline
+%%
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_calc_simple() {
+        // Reverse Polish Notation: "1 2 +" means 1 + 2 = 3
+        let mut lexer = Lexer::from_str("1 2 +");
+        let mut tokens = vec![];
+        while let Some(t) = lexer.next_token() {
+            tokens.push(t);
+        }
+        
+        let mut stack: Vec<isize> = vec![];
+        for t in tokens.iter() {
+            match t.kind {
+                TokenKind::Whitespace | TokenKind::Newline => { },
+                TokenKind::Number => {
+                    stack.push(t.tag);
+                },
+                TokenKind::Plus => {
+                    let b = stack.pop().unwrap();
+                    let a = stack.pop().unwrap();
+                    stack.push(a + b);
+                },
+                TokenKind::Minus => {
+                    let b = stack.pop().unwrap();
+                    let a = stack.pop().unwrap();
+                    stack.push(a - b);
+                },
+                TokenKind::Multiply => {
+                    let b = stack.pop().unwrap();
+                    let a = stack.pop().unwrap();
+                    stack.push(a * b);
+                },
+                TokenKind::Divide => {
+                    let b = stack.pop().unwrap();
+                    let a = stack.pop().unwrap();
+                    stack.push(a / b);
+                },
+                _ => {}
+            }
+        }
+        let result = stack.pop().unwrap();
+        assert_eq!(result, 3);
+    }
+
+    #[test]
+    fn test_calc_multiply() {
+        // Reverse Polish Notation: "3 4 *" means 3 * 4 = 12
+        let mut lexer = Lexer::from_str("3 4 *");
+        let mut tokens = vec![];
+        while let Some(t) = lexer.next_token() {
+            tokens.push(t);
+        }
+        
+        let mut stack: Vec<isize> = vec![];
+        for t in tokens.iter() {
+            match t.kind {
+                TokenKind::Whitespace | TokenKind::Newline => { },
+                TokenKind::Number => {
+                    stack.push(t.tag);
+                },
+                TokenKind::Plus => {
+                    let b = stack.pop().unwrap();
+                    let a = stack.pop().unwrap();
+                    stack.push(a + b);
+                },
+                TokenKind::Minus => {
+                    let b = stack.pop().unwrap();
+                    let a = stack.pop().unwrap();
+                    stack.push(a - b);
+                },
+                TokenKind::Multiply => {
+                    let b = stack.pop().unwrap();
+                    let a = stack.pop().unwrap();
+                    stack.push(a * b);
+                },
+                TokenKind::Divide => {
+                    let b = stack.pop().unwrap();
+                    let a = stack.pop().unwrap();
+                    stack.push(a / b);
+                },
+                _ => {}
+            }
+        }
+        let result = stack.pop().unwrap();
+        assert_eq!(result, 12);
+    }
+
+    #[test]
+    fn test_calc_complex() {
+        // Reverse Polish Notation: "5 1 2 + 4 * + 3 -"
+        // This is (5 + ((1 + 2) * 4)) - 3 = (5 + 12) - 3 = 14
+        let mut lexer = Lexer::from_str("5 1 2 + 4 * + 3 -");
+        let mut tokens = vec![];
+        while let Some(t) = lexer.next_token() {
+            tokens.push(t);
+        }
+        
+        let mut stack: Vec<isize> = vec![];
+        for t in tokens.iter() {
+            match t.kind {
+                TokenKind::Whitespace | TokenKind::Newline => { },
+                TokenKind::Number => {
+                    stack.push(t.tag);
+                },
+                TokenKind::Plus => {
+                    let b = stack.pop().unwrap();
+                    let a = stack.pop().unwrap();
+                    stack.push(a + b);
+                },
+                TokenKind::Minus => {
+                    let b = stack.pop().unwrap();
+                    let a = stack.pop().unwrap();
+                    stack.push(a - b);
+                },
+                TokenKind::Multiply => {
+                    let b = stack.pop().unwrap();
+                    let a = stack.pop().unwrap();
+                    stack.push(a * b);
+                },
+                TokenKind::Divide => {
+                    let b = stack.pop().unwrap();
+                    let a = stack.pop().unwrap();
+                    stack.push(a / b);
+                },
+                _ => {}
+            }
+        }
+        let result = stack.pop().unwrap();
+        assert_eq!(result, 14);
+    }
+}
