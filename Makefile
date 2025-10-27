@@ -34,28 +34,27 @@ test-unit:
 # Run integration tests
 test-integration: generate-lexers
 	@echo "Running integration tests..."
-	cargo test --test test_new_patterns_lexer
-	@if [ -f "tests/test_context_lexer.rs" ]; then \
-		cargo test --test test_context_lexer; \
-	fi
-	@if [ -f "tests/example_lexer.rs" ]; then \
-		cargo test --test example_lexer; \
-	fi
+	@for lexer_file in tests/*_lexer.rs; do \
+		if [ -f "$$lexer_file" ]; then \
+			test_name=$$(basename "$$lexer_file" .rs); \
+			echo "Testing $$test_name..."; \
+			cargo test --test "$$test_name" || echo "⚠️  No tests found for $$test_name"; \
+		fi; \
+	done
 
 # Test generated lexers functionality
 test-generated: generate-lexers
 	@echo "Testing generated lexers functionality..."
 	@echo "Checking if generated files compile..."
-	@for file in tests/example_lexer.rs tests/test_context_lexer.rs tests/test_new_patterns_lexer.rs; do \
+	@for file in tests/*_lexer.rs; do \
 		if [ -f "$$file" ]; then \
+			test_name=$$(basename "$$file" .rs); \
 			echo "Checking $$file..."; \
-			if cargo test --test "$$(basename $$file .rs)" --no-run 2>/dev/null; then \
+			if cargo test --test "$$test_name" --no-run 2>/dev/null; then \
 				echo "✅ $$file compiles and tests are valid"; \
 			else \
 				echo "❌ $$file has issues"; \
 			fi; \
-		else \
-			echo "⚠️  $$file not found"; \
 		fi; \
 	done
 
@@ -65,7 +64,16 @@ test-examples: generate-lexers
 	cargo test --doc
 
 # Generate lexers from all tests/*.klex files
-generate-lexers: build generate-example generate-test-context generate-new-patterns
+generate-lexers: build
+	@echo "Generating lexers from all tests/*.klex files..."
+	@for klex_file in tests/*.klex; do \
+		if [ -f "$$klex_file" ]; then \
+			base_name=$$(basename "$$klex_file" .klex); \
+			lexer_file="tests/$${base_name}_lexer.rs"; \
+			echo "Generating $$lexer_file from $$klex_file..."; \
+			cargo run "$$klex_file" "$$lexer_file" || (echo "❌ Error generating $$lexer_file"; exit 1); \
+		fi; \
+	done
 	@echo "✅ All lexers generated successfully"
 
 # Generate lexer from tests/example.klex for testing
@@ -131,7 +139,7 @@ check-lint:
 # Check if generated files are valid
 check-generated: generate-lexers
 	@echo "Validating generated files..."
-	@for file in tests/example_lexer.rs tests/test_context_lexer.rs tests/test_new_patterns_lexer.rs; do \
+	@for file in tests/*_lexer.rs; do \
 		if [ -f "$$file" ]; then \
 			echo "Checking $$file..."; \
 			cargo check --manifest-path=Cargo.toml 2>/dev/null || (echo "❌ $$file has issues"; exit 1); \

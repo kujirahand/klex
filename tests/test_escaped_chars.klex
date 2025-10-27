@@ -24,14 +24,14 @@ mod tests {
         // Debug: print what tokens we get
         let mut tokens = Vec::new();
         while let Some(token) = lexer.next_token() {
-            println!("Token: kind={}, value='{}'", token.kind, token.value.replace("\n", "\\n").replace("\t", "\\t"));
+            println!("Token: kind={:?}, value='{}'", token.kind, token.value.replace("\n", "\\n").replace("\t", "\\t"));
             tokens.push(token);
         }
         
         // Find specific tokens
-        assert!(tokens.iter().any(|t| t.kind == PLUS_ESCAPED && t.value == "+"));
-        assert!(tokens.iter().any(|t| t.kind == MULTIPLY_ESCAPED && t.value == "*"));
-        assert!(tokens.iter().any(|t| t.kind == NEWLINE_ESCAPED && t.value == "\n"));
-        assert!(tokens.iter().any(|t| t.kind == TAB_ESCAPED && t.value == "\t"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::PLUS_ESCAPED && t.value == "+"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::MULTIPLY_ESCAPED && t.value == "*"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::NEWLINE_ESCAPED && t.value == "\n"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::TAB_ESCAPED && t.value == "\t"));
     }
 }
