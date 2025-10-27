@@ -1,0 +1,98 @@
+// Test lexer with _ token (should be treated as Whitespace)
+
+%%
+[a-zA-Z_][a-zA-Z0-9_]* -> Id
+[0-9]+ -> Number
+\+ -> Plus
+\- -> Minus
+[ \t]+ -> _
+\n -> Newline
+%Id [0-9]+ -> IdNumber
+%Plus [0-9]+ -> PositiveNumber
+%%
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_underscore_token_as_whitespace() {
+        // Test that _ token doesn't update context (behaves like Whitespace)
+        let input = "var 123 +456 -789".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        // First token: Id
+        let token = lexer.next_token().unwrap();
+        println!("Token 1: kind={:?}, value='{}'", token.kind, token.value);
+        assert_eq!(token.kind, TokenKind::Id);
+        assert_eq!(token.value, "var");
+        
+        // Second token: _ (whitespace, should not update context)
+        let token = lexer.next_token().unwrap();
+        println!("Token 2: kind={:?}, value='{}'", token.kind, token.value);
+        assert_eq!(token.kind, TokenKind::Whitespace);
+        assert_eq!(token.value, " ");
+        
+        // Third token: Should be IdNumber (because _ didn't update context)
+        let token = lexer.next_token().unwrap();
+        println!("Token 3: kind={:?}, value='{}'", token.kind, token.value);
+        assert_eq!(token.kind, TokenKind::IdNumber);
+        assert_eq!(token.value, "123");
+        
+        // Fourth token: _ (whitespace)
+        let token = lexer.next_token().unwrap();
+        println!("Token 4: kind={:?}, value='{}'", token.kind, token.value);
+        assert_eq!(token.kind, TokenKind::Whitespace);
+        
+        // Fifth token: Plus
+        let token = lexer.next_token().unwrap();
+        println!("Token 5: kind={:?}, value='{}'", token.kind, token.value);
+        assert_eq!(token.kind, TokenKind::Plus);
+        assert_eq!(token.value, "+");
+        
+        // Sixth token: Should be PositiveNumber (because _ didn't update context)
+        let token = lexer.next_token().unwrap();
+        println!("Token 6: kind={:?}, value='{}'", token.kind, token.value);
+        assert_eq!(token.kind, TokenKind::PositiveNumber);
+        assert_eq!(token.value, "456");
+    }
+
+    #[test]
+    fn test_underscore_vs_regular_token() {
+        // Compare behavior: _ should not update context, but regular tokens should
+        let input = "a 1".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        // First: Id "a"
+        let token1 = lexer.next_token().unwrap();
+        assert_eq!(token1.kind, TokenKind::Id);
+        
+        // Second: _ (whitespace - doesn't update context)
+        let token2 = lexer.next_token().unwrap();
+        assert_eq!(token2.kind, TokenKind::Whitespace);
+        
+        // Third: Should be IdNumber because context is still Id (not _)
+        let token3 = lexer.next_token().unwrap();
+        assert_eq!(token3.kind, TokenKind::IdNumber);
+    }
+
+    #[test]
+    fn test_multiple_whitespace_tokens() {
+        // Test multiple _ tokens in a row
+        let input = "x   123".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        let token1 = lexer.next_token().unwrap();
+        assert_eq!(token1.kind, TokenKind::Id);
+        assert_eq!(token1.value, "x");
+        
+        // Multiple spaces should be captured as one _ token
+        let token2 = lexer.next_token().unwrap();
+        assert_eq!(token2.kind, TokenKind::Whitespace);
+        assert_eq!(token2.value, "   ");
+        
+        // Should still be IdNumber because _ doesn't update context
+        let token3 = lexer.next_token().unwrap();
+        assert_eq!(token3.kind, TokenKind::IdNumber);
+        assert_eq!(token3.value, "123");
+    }
+}

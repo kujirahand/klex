@@ -1,0 +1,241 @@
+// Test for Japanese characters (hiragana, katakana, kanji)
+use regex::Regex;
+use std::collections::HashMap;
+
+%%
+// Japanese character patterns
+[ぁ-ん]+ -> Hiragana
+[ァ-ヶー]+ -> Katakana
+[一-龯々]+ -> Kanji
+// Emoji patterns (various Unicode emoji ranges)
+[\u{1F600}-\u{1F64F}]+ -> EmojiEmoticons
+[\u{1F300}-\u{1F5FF}]+ -> EmojiSymbols
+[\u{1F680}-\u{1F6FF}]+ -> EmojiTransport
+[\u{1F900}-\u{1F9FF}]+ -> EmojiSupplemental
+[\u{2600}-\u{26FF}]+ -> EmojiMisc
+[\u{2700}-\u{27BF}]+ -> EmojiDingbats
+[a-zA-Z]+ -> Alphabet
+[0-9]+ -> Number
+[ \t]+ -> Whitespace
+\n -> Newline
+%%
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hiragana() {
+        // Test hiragana characters
+        let input = "ひらがな".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Hiragana);
+        assert_eq!(token.value, "ひらがな");
+    }
+
+    #[test]
+    fn test_katakana() {
+        // Test katakana characters
+        let input = "カタカナ".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Katakana);
+        assert_eq!(token.value, "カタカナ");
+    }
+
+    #[test]
+    fn test_kanji() {
+        // Test kanji characters
+        let input = "漢字".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Kanji);
+        assert_eq!(token.value, "漢字");
+    }
+
+    #[test]
+    fn test_mixed_japanese() {
+        // Test mixed Japanese text
+        let input = "これはカタカナと漢字のテスト".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        let mut tokens = Vec::new();
+        while let Some(token) = lexer.next_token() {
+            println!("Token: kind={:?}, value='{}'", token.kind, token.value);
+            tokens.push(token);
+        }
+        
+        // Verify we found hiragana, katakana, and kanji tokens
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Hiragana));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Katakana));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Kanji));
+    }
+
+    #[test]
+    fn test_japanese_with_numbers() {
+        // Test Japanese with numbers
+        let input = "令和5年".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        let mut tokens = Vec::new();
+        while let Some(token) = lexer.next_token() {
+            println!("Token: kind={:?}, value='{}'", token.kind, token.value);
+            tokens.push(token);
+        }
+        
+        // Should have kanji and number tokens
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Kanji && t.value == "令和"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Number && t.value == "5"));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Kanji && t.value == "年"));
+    }
+
+    #[test]
+    fn test_japanese_with_spaces() {
+        // Test Japanese with whitespace
+        let input = "こんにちは 世界".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        let token1 = lexer.next_token().unwrap();
+        assert_eq!(token1.kind, TokenKind::Hiragana);
+        assert_eq!(token1.value, "こんにちは");
+        
+        let token2 = lexer.next_token().unwrap();
+        assert_eq!(token2.kind, TokenKind::Whitespace);
+        
+        let token3 = lexer.next_token().unwrap();
+        assert_eq!(token3.kind, TokenKind::Kanji);
+        assert_eq!(token3.value, "世界");
+    }
+
+    #[test]
+    fn test_all_japanese_character_types() {
+        // Test all three Japanese character types together
+        let input = "あいうえお アイウエオ 人類愛".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        let token1 = lexer.next_token().unwrap();
+        assert_eq!(token1.kind, TokenKind::Hiragana);
+        assert_eq!(token1.value, "あいうえお");
+        
+        let _ws1 = lexer.next_token().unwrap(); // whitespace
+        
+        let token2 = lexer.next_token().unwrap();
+        assert_eq!(token2.kind, TokenKind::Katakana);
+        assert_eq!(token2.value, "アイウエオ");
+        
+        let _ws2 = lexer.next_token().unwrap(); // whitespace
+        
+        let token3 = lexer.next_token().unwrap();
+        assert_eq!(token3.kind, TokenKind::Kanji);
+        assert_eq!(token3.value, "人類愛");
+    }
+
+    #[test]
+    fn test_emoji_emoticons() {
+        // Test emoji emoticons (face emojis)
+        let input = "😀😃😄".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::EmojiEmoticons);
+        assert_eq!(token.value, "😀😃😄");
+    }
+
+    #[test]
+    fn test_emoji_symbols() {
+        // Test emoji symbols (weather, nature, etc.)
+        let input = "🌞🌙⭐".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        let mut tokens = Vec::new();
+        while let Some(token) = lexer.next_token() {
+            println!("Token: kind={:?}, value='{}'", token.kind, token.value);
+            tokens.push(token);
+        }
+        
+        // Should find emoji tokens
+        assert!(tokens.iter().any(|t| matches!(t.kind, TokenKind::EmojiSymbols | TokenKind::EmojiMisc)));
+    }
+
+    #[test]
+    fn test_emoji_transport() {
+        // Test emoji transport symbols
+        let input = "🚀🚁🚂".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::EmojiTransport);
+        assert_eq!(token.value, "🚀🚁🚂");
+    }
+
+    #[test]
+    fn test_japanese_with_emoji() {
+        // Test Japanese text mixed with emojis
+        let input = "こんにちは😀世界🌍".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        let mut tokens = Vec::new();
+        while let Some(token) = lexer.next_token() {
+            println!("Token: kind={:?}, value='{}'", token.kind, token.value);
+            tokens.push(token);
+        }
+        
+        // Should have hiragana, emoji, and kanji tokens
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Hiragana));
+        assert!(tokens.iter().any(|t| matches!(t.kind, 
+            TokenKind::EmojiEmoticons | 
+            TokenKind::EmojiSymbols | 
+            TokenKind::EmojiTransport | 
+            TokenKind::EmojiSupplemental |
+            TokenKind::EmojiMisc |
+            TokenKind::EmojiDingbats)));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Kanji));
+    }
+
+    #[test]
+    fn test_emoji_with_text() {
+        // Test emoji mixed with various text types
+        let input = "Hello 😊 こんにちは 🎉 カタカナ ✨".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        let mut tokens = Vec::new();
+        while let Some(token) = lexer.next_token() {
+            println!("Token: kind={:?}, value='{}'", token.kind, token.value);
+            tokens.push(token);
+        }
+        
+        // Verify different token types
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Alphabet));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Hiragana));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Katakana));
+        assert!(tokens.iter().any(|t| matches!(t.kind, 
+            TokenKind::EmojiEmoticons | 
+            TokenKind::EmojiSymbols | 
+            TokenKind::EmojiMisc)));
+    }
+
+    #[test]
+    fn test_multiple_emoji_types() {
+        // Test different types of emojis together
+        let input = "😀🌟🚀".to_string();
+        let mut lexer = Lexer::new(input);
+        
+        let mut tokens = Vec::new();
+        while let Some(token) = lexer.next_token() {
+            println!("Token: kind={:?}, value='{}'", token.kind, token.value);
+            tokens.push(token);
+        }
+        
+        // Should find various emoji tokens
+        assert!(!tokens.is_empty());
+        assert!(tokens.iter().all(|t| matches!(t.kind, 
+            TokenKind::EmojiEmoticons | 
+            TokenKind::EmojiSymbols | 
+            TokenKind::EmojiTransport | 
+            TokenKind::EmojiMisc)));
+    }
+}
+
