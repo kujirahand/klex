@@ -134,8 +134,8 @@ impl Lexer {
 
 	/// Attempts to match a cached regex pattern against the input
 	/// Returns the matched string if found, None otherwise
-	fn match_cached_pattern(&self, input: &str, token_kind: u32) -> Option<String> {
-		if let Some(regex) = self.regex_cache.get(&token_kind) {
+	fn match_cached_pattern(&self, input: &str, token_kind: TokenKind) -> Option<String> {
+		if let Some(regex) = self.regex_cache.get(&(token_kind as u32)) {
 			if let Some(mat) = regex.find(input) {
 				return Some(mat.as_str().to_string());
 			}

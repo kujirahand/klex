@@ -49,7 +49,7 @@ fn pattern_to_regex(pattern: &RulePattern) -> String {
 
 /// Generates optimized pattern matching code for a RulePattern.
 /// This generates direct character/string comparison code instead of using regex when possible.
-fn generate_pattern_match_code(pattern: &RulePattern, rule_kind: u32) -> (String, bool) {
+fn generate_pattern_match_code(pattern: &RulePattern, rule_name: &str) -> (String, bool) {
     match pattern {
         RulePattern::CharLiteral(ch) => {
             // Direct character comparison (most efficient)
@@ -104,11 +104,11 @@ fn generate_pattern_match_code(pattern: &RulePattern, rule_kind: u32) -> (String
         }
         RulePattern::AnyCharPlus => {
             // Match one or more characters (except newline) - needs regex for simplicity
-            (format!("self.match_cached_pattern(remaining, {})", rule_kind), true)
+            (format!("self.match_cached_pattern(remaining, TokenKind::{})", rule_name), true)
         }
         RulePattern::Regex(_) | RulePattern::CharSet(_) | RulePattern::Choice(_) => {
             // Complex patterns need regex
-            (format!("self.match_cached_pattern(remaining, {})", rule_kind), true)
+            (format!("self.match_cached_pattern(remaining, TokenKind::{})", rule_name), true)
         }
     }
 }
@@ -181,14 +181,14 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
     let mut regex_code = String::new();
     regex_code.push_str("        // Pre-compile patterns that require regex\n");
     for rule in &spec.rules {
-        let (_match_code, needs_regex) = generate_pattern_match_code(&rule.pattern, rule.kind);
+        let (_match_code, needs_regex) = generate_pattern_match_code(&rule.pattern, &rule.name);
         if needs_regex {
             // Convert pattern to regex and escape for string literal
             let regex_pattern = pattern_to_regex(&rule.pattern);
             let escaped_pattern = regex_pattern.replace("\\", "\\\\").replace("\"", "\\\"");
             regex_code.push_str(&format!(
-                "        regex_cache.insert({}, Regex::new(\"^{}\").unwrap());\n",
-                rule.kind, escaped_pattern
+                "        regex_cache.insert(TokenKind::{} as u32, Regex::new(\"^{}\").unwrap());\n",
+                rule.name, escaped_pattern
             ));
         }
     }
@@ -208,7 +208,7 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
                 .map(|r| r.name.clone())
                 .unwrap_or_else(|| panic!("Context token '{}' not found", context_token));
 
-            let (match_code, _needs_regex) = generate_pattern_match_code(&rule.pattern, rule.kind);
+            let (match_code, _needs_regex) = generate_pattern_match_code(&rule.pattern, &rule.name);
             let pattern_desc = pattern_to_regex(&rule.pattern)
                 .replace('\n', "\\n")
                 .replace('\t', "\\t")
@@ -243,7 +243,7 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
     for rule in &spec.rules {
         if rule.context_token.is_none() && rule.action_code.is_some() {
             let action_code = rule.action_code.as_ref().unwrap();
-            let (match_code, _needs_regex) = generate_pattern_match_code(&rule.pattern, rule.kind);
+            let (match_code, _needs_regex) = generate_pattern_match_code(&rule.pattern, &rule.name);
             let pattern_desc = pattern_to_regex(&rule.pattern)
                 .replace('\n', "\\n")
                 .replace('\t', "\\t")
@@ -294,7 +294,7 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
                 "self.last_token_kind = Some(token.kind.clone())"
             };
 
-            let (match_code, _needs_regex) = generate_pattern_match_code(&rule.pattern, rule.kind);
+            let (match_code, _needs_regex) = generate_pattern_match_code(&rule.pattern, &rule.name);
             let pattern_desc = pattern_to_regex(&rule.pattern)
                 .replace('\n', "\\n")
                 .replace('\t', "\\t")
