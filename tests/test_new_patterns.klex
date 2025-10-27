@@ -60,12 +60,12 @@ mod tests {
         }
 
         // Test specific patterns
-        assert!(tokens.iter().any(|t| t.value == "q" && t.kind == CHAR_Q));
-        assert!(tokens.iter().any(|t| t.value == "hello" && t.kind == HELLO_STRING));
-        assert!(tokens.iter().any(|t| t.value == "123" && t.kind == DIGIT_RANGE));
-        assert!(tokens.iter().any(|t| t.value == "ABC" && t.kind == UPPER_CASE));
+        assert!(tokens.iter().any(|t| t.value == "q" && t.kind == TokenKind::CHAR_Q));
+        assert!(tokens.iter().any(|t| t.value == "hello" && t.kind == TokenKind::HELLO_STRING));
+        assert!(tokens.iter().any(|t| t.value == "123" && t.kind == TokenKind::DIGIT_RANGE));
+        assert!(tokens.iter().any(|t| t.value == "ABC" && t.kind == TokenKind::UPPER_CASE));
         // abc matches LOWER_CASE pattern first since it comes before ABC_SET in rule order
-        assert!(tokens.iter().any(|t| t.value == "abc" && t.kind == LOWER_CASE));
+        assert!(tokens.iter().any(|t| t.value == "abc" && t.kind == TokenKind::LOWER_CASE));
     }
     
     #[test]
@@ -84,10 +84,10 @@ mod tests {
         }
         
         // Should match digit range, lower case, upper case, and character sets
-        assert!(tokens.iter().any(|t| t.kind == DIGIT_RANGE));
-        assert!(tokens.iter().any(|t| t.kind == LOWER_CASE));
-        assert!(tokens.iter().any(|t| t.kind == UPPER_CASE));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::DIGIT_RANGE));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::LOWER_CASE));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::UPPER_CASE));
         // xyz's 'x' matches action rule first, so we check for any LOWER_CASE match
-        assert!(tokens.iter().any(|t| t.kind == LOWER_CASE && (t.value == "def" || t.value == "yz")));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::LOWER_CASE && (t.value == "def" || t.value == "yz")));
     }
 }
