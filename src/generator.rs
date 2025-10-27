@@ -288,7 +288,7 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
     // Finally, generate regular token rules
     for rule in &spec.rules {
         if rule.context_token.is_none() && rule.action_code.is_none() {
-            let update_context = if rule.name == "WHITESPACE" || rule.name == "NEWLINE" {
+            let update_context = if rule.name == "WHITESPACE" || rule.name == "Whitespace" || rule.name == "NEWLINE" || rule.name == "Newline" {
                 "// Whitespace tokens don't update context"
             } else {
                 "self.last_token_kind = Some(token.kind.clone())"

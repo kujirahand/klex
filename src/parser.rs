@@ -357,7 +357,11 @@ pub fn parse_spec(input: &str) -> Result<LexerSpec, Box<dyn Error>> {
                 spec.rules.push(rule);
             } else {
                 // Token rule: pattern -> TOKEN_NAME
-                let name = right_part.to_string();
+                let mut name = right_part.to_string();
+                // Special case: _ is treated as Whitespace
+                if name == "_" {
+                    name = "Whitespace".to_string();
+                }
                 spec.rules.push(LexerRule::new(pattern, kind_counter, name));
             }
         } else {
