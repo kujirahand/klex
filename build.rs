@@ -117,7 +117,7 @@ fn generate_test_lexers() {
                 "target/release/klex"
             };
 
-            println!("cargo:warning=Generating {} from {}", output_file.display(), klex_file.display());
+            // println!("cargo:warning=Generating {} from {}", output_file.display(), klex_file.display());
             
             let status = Command::new(klex_bin)
                 .arg(klex_file.to_str().unwrap())
@@ -126,7 +126,7 @@ fn generate_test_lexers() {
 
             match status {
                 Ok(status) if status.success() => {
-                    println!("cargo:warning=Successfully generated {}", output_file.display());
+                    // println!("cargo:warning=Successfully generated {}", output_file.display());
                 }
                 _ => {
                     println!("cargo:warning=Failed to generate {}. Run 'make generate-lexers' manually.", output_file.display());
