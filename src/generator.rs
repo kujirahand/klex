@@ -240,13 +240,37 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
         }
     }
 
+    // Generate to_string method
+    let mut to_string_method = String::new();
+    to_string_method.push_str("\t/// Returns a string representation of the token kind for debugging purposes.\n");
+    to_string_method.push_str("\t///\n");
+    to_string_method.push_str("\t/// # Returns\n");
+    to_string_method.push_str("\t///\n");
+    to_string_method.push_str("\t/// A human-readable string representation of the token kind\n");
+    to_string_method.push_str("\tpub fn to_string(&self) -> String {\n");
+    to_string_method.push_str("\t\tmatch self.kind {\n");
+    
+    // Add cases for each defined token
+    for rule in &spec.rules {
+        if rule.action_code.is_none() && !rule.name.is_empty() {
+            to_string_method.push_str(&format!("\t\t\t{} => \"{}\".to_string(),\n", rule.name, rule.name));
+        }
+    }
+    
+    // Add case for UNKNOWN_TOKEN
+    to_string_method.push_str("\t\t\tUNKNOWN_TOKEN => \"UNKNOWN_TOKEN\".to_string(),\n");
+    to_string_method.push_str("\t\t\t_ => format!(\"TOKEN_{}\", self.kind),\n");
+    to_string_method.push_str("\t\t}\n");
+    to_string_method.push_str("\t}");
+
     // Replace markers with generated code
     output = output.replace(
-        "///GENERATED_BY",
+        "//----<GENERATED_BY>----",
         &format!("// Generated from: {}", source_file),
     );
-    output = output.replace("////REG_EX_CODE", &regex_code);
-    output = output.replace("////RULE_MATCH_CODE", &rule_match_code);
+    output = output.replace("//----<REG_EX_CODE>----", &regex_code);
+    output = output.replace("//----<RULE_MATCH_CODE>----", &rule_match_code);
+    output = output.replace("//----<TO_STRING_METHOD>----", &to_string_method);
 
     // Insert constants before the Token struct
     output = output.replace(

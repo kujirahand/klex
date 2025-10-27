@@ -156,9 +156,12 @@ impl Error for ParseError {}
 /// - 'c' for character literals
 /// - "string" for string literals  
 /// - /regex/ for regular expressions
-/// - (pattern1 | pattern2) for choices
-/// - & pattern1 pattern2 for positive lookahead
-/// - ^ pattern1 pattern2 for negative lookahead
+/// - [0-9]+, [abc]*, [a-z] for character sets with quantifiers
+/// - (pattern1 | pattern2) for choices between patterns
+/// - ? for any single character
+/// - ?+ for one or more any characters
+/// - \+, \n, \t, etc. for escaped characters
+/// - Any other pattern is treated as a regex for backward compatibility
 fn parse_pattern(input: &str) -> Result<RulePattern, ParseError> {
     let trimmed = input.trim();
 
@@ -233,16 +236,6 @@ fn parse_pattern(input: &str) -> Result<RulePattern, ParseError> {
             }
             return Ok(RulePattern::Choice(patterns));
         }
-    }
-
-    // Positive lookahead: & pattern1 pattern2 (NOT SUPPORTED by Rust regex crate)
-    if trimmed.starts_with("& ") {
-        return Err(ParseError::new("Positive lookahead (& pattern1 pattern2) is not supported by Rust regex crate. Use alternative approach.".to_string()));
-    }
-
-    // Negative lookahead: ^ pattern1 pattern2 (NOT SUPPORTED by Rust regex crate)
-    if trimmed.starts_with("^ ") {
-        return Err(ParseError::new("Negative lookahead (^ pattern1 pattern2) is not supported by Rust regex crate. Use alternative approach.".to_string()));
     }
 
     // Default: treat as regex pattern for backward compatibility

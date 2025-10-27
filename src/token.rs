@@ -2,6 +2,13 @@
 //!
 //! This module provides the `Token` struct used by generated lexers.
 
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum TokenKind {
+    Unknown,
+}
+
 /// Token structure that represents a lexical token.
 ///
 /// Each token contains information about what was matched, where it was found,
@@ -9,8 +16,8 @@
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
-    /// Token kind (numeric identifier)
-    pub kind: u32,
+    /// Token kind
+    pub kind: TokenKind,
     /// The matched text value
     pub value: String,
     /// 1-based line number where token was found

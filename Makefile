@@ -167,7 +167,7 @@ demo: generate-lexers
 	@echo "\nTest files in tests/ directory:"
 	@ls -la tests/*.klex
 	@echo "\nFirst 50 lines of example lexer:"
-	@head -50 tests/example_lexer.rs 2>/dev/null || echo "example_lexer.rs not found"
+	@head -100 tests/example_lexer.rs 2>/dev/null || echo "example_lexer.rs not found"
 	@$(MAKE) clean-generated
 
 # Install dependencies (if needed)

@@ -28,8 +28,7 @@ klex/
 │   └── lexer.rs         # レキサーテンプレート（build.rsで利用）
 ├── tests/               # テストファイル（.klexファイルとRustテストファイル）
 │   ├── example.klex     # サンプル仕様ファイル
-│   ├── test_context.klex # コンテキスト依存テスト用仕様ファイル
-│   └── lexer_test.rs    # Rustテストファイル
+│   └── *.klex           # 各種テスト
 ├── build.rs             # ビルドスクリプト（テンプレート埋め込み）
 ├── Makefile             # ビルド・テスト自動化
 ├── Cargo.toml           # プロジェクト設定
@@ -110,7 +109,7 @@ pub struct Token {
 
 各ルールは以下の形式で記述：
 
-```
+```text
 <規則> -> <TOKEN_NAME>
 %<TOKEN_NAME> <規則> -> <TOKEN_NAME>
 <規則> -> { <ACTION_CODE> }
