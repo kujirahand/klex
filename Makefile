@@ -111,7 +111,7 @@ generate-new-patterns:
 generate-lexer: generate-example
 
 # Clean build artifacts
-clean-buld:
+clean-build:
 	@echo "Cleaning build artifacts..."
 	cargo clean
 	rm ./output.rs
@@ -122,7 +122,7 @@ clean-generated:
 	@rm -f tests/*.rs
 
 # Full clean (build artifacts + generated files)
-clean: clean clean-generated
+clean: clean-build clean-generated
 
 # Comprehensive code quality checks
 check: check-format check-lint check-generated check-tests
