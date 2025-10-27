@@ -7,8 +7,8 @@ fn main() {
     let dest_path = Path::new(&out_dir).join("template.rs");
 
     // Read the lexer.rs template file
-    let template_content = fs::read_to_string("src/lexer.rs")
-        .expect("Failed to read src/lexer.rs template file");
+    let template_content =
+        fs::read_to_string("src/lexer.rs").expect("Failed to read src/lexer.rs template file");
 
     // We don't need to create lexer_template.rs anymore
     // Just create the template.rs file in OUT_DIR
@@ -24,8 +24,7 @@ pub const LEXER_TEMPLATE: &str = "{}";
         escaped_content
     );
 
-    fs::write(&dest_path, template_code)
-        .expect("Failed to write template.rs");
+    fs::write(&dest_path, template_code).expect("Failed to write template.rs");
 
     println!("cargo:rerun-if-changed=src/lexer.rs");
 }

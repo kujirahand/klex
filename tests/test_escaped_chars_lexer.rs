@@ -13,78 +13,90 @@ pub const NEWLINE_ESCAPED: u32 = 2;
 pub const TAB_ESCAPED: u32 = 3;
 pub const SPACE: u32 = 4;
 
-
 pub const UNKNOWN_TOKEN: u32 = u32::MAX; // For unmatched characters
 
 /// Token structure that represents a lexical token
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
-	pub kind: u32,
-	pub value: String,
-	pub row: usize,
-	pub col: usize,
-	pub length: usize,
-	pub indent: usize,
-	pub tag: isize,
+    pub kind: u32,
+    pub value: String,
+    pub row: usize,
+    pub col: usize,
+    pub length: usize,
+    pub indent: usize,
+    pub tag: isize,
 }
 
 impl Token {
-	pub fn new(kind: u32, value: String, row: usize, col: usize, length: usize, indent: usize) -> Self {
-		Token {
-			kind,
-			value,
-			row,
-			col,
-			length,
-			indent,
-			tag: 0,
-		}
-	}
+    pub fn new(
+        kind: u32,
+        value: String,
+        row: usize,
+        col: usize,
+        length: usize,
+        indent: usize,
+    ) -> Self {
+        Token {
+            kind,
+            value,
+            row,
+            col,
+            length,
+            indent,
+            tag: 0,
+        }
+    }
 }
 
 pub struct Lexer {
-	input: String,
-	pos: usize,
-	row: usize,
-	col: usize,
-	regex_cache: HashMap<u32, Regex>,
-	last_token_kind: Option<u32>,
+    input: String,
+    pos: usize,
+    row: usize,
+    col: usize,
+    regex_cache: HashMap<u32, Regex>,
+    last_token_kind: Option<u32>,
 }
 
 impl Lexer {
-	pub fn new(input: String) -> Self {
-		let mut regex_cache = HashMap::new();
-		        // Pre-compile all patterns and store them in cache
+    pub fn new(input: String) -> Self {
+        let mut regex_cache = HashMap::new();
+        // Pre-compile all patterns and store them in cache
         regex_cache.insert(0, Regex::new("^\\+").unwrap());
         regex_cache.insert(1, Regex::new("^\\*").unwrap());
-        regex_cache.insert(2, Regex::new("^
-").unwrap());
+        regex_cache.insert(
+            2,
+            Regex::new(
+                "^
+",
+            )
+            .unwrap(),
+        );
         regex_cache.insert(3, Regex::new("^	").unwrap());
         regex_cache.insert(4, Regex::new("^ ").unwrap());
-        
-		Lexer {
-			input,
-			pos: 0,
-			row: 1,
-			col: 1,
-			regex_cache,
-			last_token_kind: None,
-		}
-	}
 
-	pub fn next_token(&mut self) -> Option<Token> {
-		if self.pos >= self.input.len() {
-			return None;
-		}
+        Lexer {
+            input,
+            pos: 0,
+            row: 1,
+            col: 1,
+            regex_cache,
+            last_token_kind: None,
+        }
+    }
 
-		let remaining = &self.input[self.pos..];
-		let start_row = self.row;
-		let start_col = self.col;
+    pub fn next_token(&mut self) -> Option<Token> {
+        if self.pos >= self.input.len() {
+            return None;
+        }
 
-		// Calculate indent (spaces at the start of current line)
-		let indent = self.calculate_line_indent();
+        let remaining = &self.input[self.pos..];
+        let start_row = self.row;
+        let start_col = self.col;
 
-		        // Rule: \+ -> PLUS_ESCAPED
+        // Calculate indent (spaces at the start of current line)
+        let indent = self.calculate_line_indent();
+
+        // Rule: \+ -> PLUS_ESCAPED
         if let Some(matched) = self.match_cached_pattern(remaining, 0) {
             let token = Token::new(
                 0,
@@ -159,55 +171,53 @@ impl Lexer {
             return Some(token);
         }
 
+        // No pattern matched, consume one character
+        let ch = remaining.chars().next().unwrap();
+        let matched = ch.to_string();
+        self.advance(&matched);
+        let token = Token::new(UNKNOWN_TOKEN, matched, start_row, start_col, 1, indent);
+        self.last_token_kind = Some(token.kind);
+        Some(token)
+    }
 
+    fn calculate_line_indent(&self) -> usize {
+        // Find the start of the current line
+        let mut line_start = 0;
+        let mut pos = 0;
 
-		// No pattern matched, consume one character
-		let ch = remaining.chars().next().unwrap();
-		let matched = ch.to_string();
-		self.advance(&matched);
-		let token = Token::new(UNKNOWN_TOKEN, matched, start_row, start_col, 1, indent);
-		self.last_token_kind = Some(token.kind);
-		Some(token)
-	}
+        // Find the beginning of the current line
+        while pos < self.pos {
+            if self.input.chars().nth(pos) == Some('\n') {
+                line_start = pos + 1;
+            }
+            pos += 1;
+        }
 
-	fn calculate_line_indent(&self) -> usize {
-		// Find the start of the current line
-		let mut line_start = 0;
-		let mut pos = 0;
-		
-		// Find the beginning of the current line
-		while pos < self.pos {
-			if self.input.chars().nth(pos) == Some('\n') {
-				line_start = pos + 1;
-			}
-			pos += 1;
-		}
-		
-		// Count spaces from the beginning of the line
-		let line_content = &self.input[line_start..];
-		line_content.chars().take_while(|&c| c == ' ').count()
-	}
+        // Count spaces from the beginning of the line
+        let line_content = &self.input[line_start..];
+        line_content.chars().take_while(|&c| c == ' ').count()
+    }
 
-	fn match_cached_pattern(&self, input: &str, token_kind: u32) -> Option<String> {
-		if let Some(regex) = self.regex_cache.get(&token_kind) {
-			if let Some(mat) = regex.find(input) {
-				return Some(mat.as_str().to_string());
-			}
-		}
-		None
-	}
+    fn match_cached_pattern(&self, input: &str, token_kind: u32) -> Option<String> {
+        if let Some(regex) = self.regex_cache.get(&token_kind) {
+            if let Some(mat) = regex.find(input) {
+                return Some(mat.as_str().to_string());
+            }
+        }
+        None
+    }
 
-	fn advance(&mut self, matched: &str) {
-		for ch in matched.chars() {
-			self.pos += ch.len_utf8();
-			if ch == '\n' {
-				self.row += 1;
-				self.col = 1;
-			} else {
-				self.col += 1;
-			}
-		}
-	}
+    fn advance(&mut self, matched: &str) {
+        for ch in matched.chars() {
+            self.pos += ch.len_utf8();
+            if ch == '\n' {
+                self.row += 1;
+                self.col = 1;
+            } else {
+                self.col += 1;
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -218,18 +228,30 @@ mod tests {
     fn test_escaped_patterns() {
         let input = "+*\n\t".to_string();
         let mut lexer = Lexer::new(input);
-        
+
         // Debug: print what tokens we get
         let mut tokens = Vec::new();
         while let Some(token) = lexer.next_token() {
-            println!("Token: kind={}, value='{}'", token.kind, token.value.replace("\n", "\\n").replace("\t", "\\t"));
+            println!(
+                "Token: kind={}, value='{}'",
+                token.kind,
+                token.value.replace("\n", "\\n").replace("\t", "\\t")
+            );
             tokens.push(token);
         }
-        
+
         // Find specific tokens
-        assert!(tokens.iter().any(|t| t.kind == PLUS_ESCAPED && t.value == "+"));
-        assert!(tokens.iter().any(|t| t.kind == MULTIPLY_ESCAPED && t.value == "*"));
-        assert!(tokens.iter().any(|t| t.kind == NEWLINE_ESCAPED && t.value == "\n"));
-        assert!(tokens.iter().any(|t| t.kind == TAB_ESCAPED && t.value == "\t"));
+        assert!(tokens
+            .iter()
+            .any(|t| t.kind == PLUS_ESCAPED && t.value == "+"));
+        assert!(tokens
+            .iter()
+            .any(|t| t.kind == MULTIPLY_ESCAPED && t.value == "*"));
+        assert!(tokens
+            .iter()
+            .any(|t| t.kind == NEWLINE_ESCAPED && t.value == "\n"));
+        assert!(tokens
+            .iter()
+            .any(|t| t.kind == TAB_ESCAPED && t.value == "\t"));
     }
 }

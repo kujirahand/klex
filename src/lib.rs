@@ -59,5 +59,5 @@ pub mod parser;
 pub mod token;
 
 pub use generator::generate_lexer;
-pub use parser::{LexerSpec, LexerRule, ParseError, parse_spec};
+pub use parser::{parse_spec, LexerRule, LexerSpec, ParseError};
 pub use token::Token;
