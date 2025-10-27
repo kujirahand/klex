@@ -114,7 +114,7 @@ generate-lexer: generate-example
 clean-buld:
 	@echo "Cleaning build artifacts..."
 	cargo clean
-	rm output.rs
+	rm ./output.rs
 
 # Clean generated files
 clean-generated:
