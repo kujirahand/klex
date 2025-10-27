@@ -1,0 +1,91 @@
+//
+// 内部でCharRangeMatch1とCharRangeMatch0を使うテスト
+//
+
+%%
+[ \t\n\r]+ -> Whitespace
+[0-9]+ -> Number
+[a-z]+ -> LowercaseWord  
+[A-Z]+ -> UppercaseWord
+%%
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_number() {
+        let mut lexer = Lexer::from_str("123");
+        let token = lexer.next_token();
+        assert!(token.is_some());
+        let token = token.unwrap();
+        assert_eq!(token.kind, TokenKind::Number);
+        assert_eq!(token.text, "123");
+    }
+
+    #[test]
+    fn test_lowercase_word() {
+        let mut lexer = Lexer::from_str("hello");
+        let token = lexer.next_token();
+        assert!(token.is_some());
+        let token = token.unwrap();
+        assert_eq!(token.kind, TokenKind::LowercaseWord);
+        assert_eq!(token.text, "hello");
+    }
+
+    #[test]
+    fn test_uppercase_word() {
+        let mut lexer = Lexer::from_str("WORLD");
+        let token = lexer.next_token();
+        assert!(token.is_some());
+        let token = token.unwrap();
+        assert_eq!(token.kind, TokenKind::UppercaseWord);
+        assert_eq!(token.text, "WORLD");
+    }
+
+    #[test]
+    fn test_multiple_tokens() {
+        let mut lexer = Lexer::from_str("123 hello WORLD");
+        
+        let token = lexer.next_token();
+        assert!(token.is_some());
+        let token = token.unwrap();
+        assert_eq!(token.kind, TokenKind::Number);
+        assert_eq!(token.text, "123");
+
+        let token = lexer.next_token();
+        assert!(token.is_some());
+        let token = token.unwrap();
+        assert_eq!(token.kind, TokenKind::Whitespace);
+        assert_eq!(token.text, " ");
+
+        let token = lexer.next_token();
+        assert!(token.is_some());
+        let token = token.unwrap();
+        assert_eq!(token.kind, TokenKind::LowercaseWord);
+        assert_eq!(token.text, "hello");
+
+        let token = lexer.next_token();
+        assert!(token.is_some());
+        let token = token.unwrap();
+        assert_eq!(token.kind, TokenKind::Whitespace);
+        assert_eq!(token.text, " ");
+
+        let token = lexer.next_token();
+        assert!(token.is_some());
+        let token = token.unwrap();
+        assert_eq!(token.kind, TokenKind::UppercaseWord);
+        assert_eq!(token.text, "WORLD");
+    }
+
+    #[test]
+    fn test_range_patterns() {
+        // Test that [0-9]+ is parsed as CharRangeMatch1
+        let mut lexer = Lexer::from_str("9876543210");
+        let token = lexer.next_token();
+        assert!(token.is_some());
+        let token = token.unwrap();
+        assert_eq!(token.kind, TokenKind::Number);
+        assert_eq!(token.text, "9876543210");
+    }
+}

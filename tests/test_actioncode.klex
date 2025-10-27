@@ -1,0 +1,109 @@
+//
+// アクションコードのテスト
+// 単純なアクションコードで処理を行うテスト
+//
+
+%%
+// カスタムトークンの明示的な宣言
+%token Other CustomToken
+
+// 'x'をマッチして、アクションコードでOtherトークンとして返す
+'x' -> { Some(Token::new(TokenKind::Other, test_t.text.clone(), test_t.index, test_t.row, test_t.col, test_t.length, test_t.indent)) }
+
+// 'c'をマッチして、アクションコードでCustomTokenとして返す
+'c' -> { Some(Token::new(TokenKind::CustomToken, test_t.text.clone(), test_t.index, test_t.row, test_t.col, test_t.length, test_t.indent)) }
+
+// 'y'はそのまま返す
+'y' -> CharY
+
+// 空白
+/[ \t\n\r]+/ -> Whitespace
+
+// その他の文字
+/./ -> Unknown
+%%
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_char_x_with_action() {
+        // 'x'はアクションコードでOtherトークンとして返される
+        let mut lexer = Lexer::from_str("x");
+        let token = lexer.next_token();
+        assert!(token.is_some());
+        let token = token.unwrap();
+        assert_eq!(token.kind, TokenKind::Other);
+        assert_eq!(token.text, "x");
+    }
+
+    #[test]
+    fn test_char_y_normal() {
+        let mut lexer = Lexer::from_str("y");
+        let token = lexer.next_token();
+        assert!(token.is_some());
+        let token = token.unwrap();
+        assert_eq!(token.kind, TokenKind::CharY);
+        assert_eq!(token.text, "y");
+    }
+
+    #[test]
+    fn test_char_c_with_custom_token() {
+        // 'c'はアクションコードでCustomTokenとして返される
+        let mut lexer = Lexer::from_str("c");
+        let token = lexer.next_token();
+        assert!(token.is_some());
+        let token = token.unwrap();
+        assert_eq!(token.kind, TokenKind::CustomToken);
+        assert_eq!(token.text, "c");
+    }
+
+    #[test]
+    fn test_other_char() {
+        let mut lexer = Lexer::from_str("a");
+        let token = lexer.next_token();
+        assert!(token.is_some());
+        let token = token.unwrap();
+        assert_eq!(token.kind, TokenKind::Unknown);
+        assert_eq!(token.text, "a");
+    }
+
+    #[test]
+    fn test_mixed_tokens() {
+        let mut lexer = Lexer::from_str("x y a");
+        
+        // x with action (returns Other)
+        let token = lexer.next_token();
+        assert!(token.is_some());
+        let token = token.unwrap();
+        assert_eq!(token.kind, TokenKind::Other);
+        assert_eq!(token.text, "x");
+
+        // space
+        let token = lexer.next_token();
+        assert!(token.is_some());
+        let token = token.unwrap();
+        assert_eq!(token.kind, TokenKind::Whitespace);
+
+        // y normal
+        let token = lexer.next_token();
+        assert!(token.is_some());
+        let token = token.unwrap();
+        assert_eq!(token.kind, TokenKind::CharY);
+        assert_eq!(token.text, "y");
+
+        // space
+        let token = lexer.next_token();
+        assert!(token.is_some());
+        let token = token.unwrap();
+        assert_eq!(token.kind, TokenKind::Whitespace);
+
+        // 'a' as unknown
+        let token = lexer.next_token();
+        assert!(token.is_some());
+        let token = token.unwrap();
+        assert_eq!(token.kind, TokenKind::Unknown);
+        assert_eq!(token.text, "a");
+    }
+}

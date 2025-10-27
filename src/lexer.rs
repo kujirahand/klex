@@ -93,6 +93,15 @@ impl Lexer {
 		Self::new(input.to_string())
 	}
 
+	/// Tokenize input
+	pub fn tokenize(&mut self) -> Vec<Token> {
+		let mut tokens = vec![];
+		while let Some(tok) = self.next_token() {
+			tokens.push(tok); 
+		}
+		tokens
+	}
+
 	/// Returns the next token from the input string
 	/// Returns None when the end of input is reached
 	pub fn next_token(&mut self) -> Option<Token> {

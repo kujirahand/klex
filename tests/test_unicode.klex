@@ -1,0 +1,142 @@
+// Test Unicode character ranges
+%%
+[\u{1F600}-\u{1F64F}]+ -> EMOJI_EMOTICONS
+[\u{1F300}-\u{1F5FF}]+ -> EMOJI_MISC_SYMBOLS
+[\u{1F680}-\u{1F6FF}]+ -> EMOJI_TRANSPORT
+[\u{3040}-\u{309F}]+ -> HIRAGANA
+[\u{30A0}-\u{30FF}]+ -> KATAKANA
+[\u{4E00}-\u{9FFF}]+ -> KANJI
+[\u{AC00}-\u{D7AF}]+ -> HANGUL
+[\u{0400}-\u{04FF}]+ -> CYRILLIC
+[\u{0600}-\u{06FF}]+ -> ARABIC
+[0-9]+ -> NUMBER
+[ \t\n\r]+ -> _
+%%
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn TestUnicodeLexer(str: &str) -> Lexer {
+        Lexer::from_str(str)
+    }
+
+    #[test]
+    fn test_emoji_emoticons() {
+        let input = "😀😁😂";
+        let mut lexer = TestUnicodeLexer(input);
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].kind, TokenKind::EMOJI_EMOTICONS);
+        assert_eq!(tokens[0].text, "😀😁😂");
+    }
+
+    #[test]
+    fn test_emoji_transport() {
+        let input = "🚀🚁🚂";
+        let mut lexer = TestUnicodeLexer(input);
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].kind, TokenKind::EMOJI_TRANSPORT);
+        assert_eq!(tokens[0].text, "🚀🚁🚂");
+    }
+
+    #[test]
+    fn test_hiragana() {
+        let input = "ひらがな";
+        let mut lexer = TestUnicodeLexer(input);
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].kind, TokenKind::HIRAGANA);
+        assert_eq!(tokens[0].text, "ひらがな");
+    }
+
+    #[test]
+    fn test_katakana() {
+        let input = "カタカナ";
+        let mut lexer = TestUnicodeLexer(input);
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].kind, TokenKind::KATAKANA);
+        assert_eq!(tokens[0].text, "カタカナ");
+    }
+
+    #[test]
+    fn test_kanji() {
+        let input = "漢字";
+        let mut lexer = TestUnicodeLexer(input);
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].kind, TokenKind::KANJI);
+        assert_eq!(tokens[0].text, "漢字");
+    }
+
+    #[test]
+    fn test_mixed_japanese() {
+        let input = "ひらがなカタカナ漢字";
+        let mut lexer = TestUnicodeLexer(input);
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens.len(), 3);
+        assert_eq!(tokens[0].kind, TokenKind::HIRAGANA);
+        assert_eq!(tokens[0].text, "ひらがな");
+        assert_eq!(tokens[1].kind, TokenKind::KATAKANA);
+        assert_eq!(tokens[1].text, "カタカナ");
+        assert_eq!(tokens[2].kind, TokenKind::KANJI);
+        assert_eq!(tokens[2].text, "漢字");
+    }
+
+    #[test]
+    fn test_cyrillic() {
+        let input = "Привет";
+        let mut lexer = TestUnicodeLexer(input);
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].kind, TokenKind::CYRILLIC);
+        assert_eq!(tokens[0].text, "Привет");
+    }
+
+    #[test]
+    fn test_hangul() {
+        let input = "한글";
+        let mut lexer = TestUnicodeLexer(input);
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].kind, TokenKind::HANGUL);
+        assert_eq!(tokens[0].text, "한글");
+    }
+
+    #[test]
+    fn test_arabic() {
+        let input = "العربية";
+        let mut lexer = TestUnicodeLexer(input);
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].kind, TokenKind::ARABIC);
+        assert_eq!(tokens[0].text, "العربية");
+    }
+
+    #[test]
+    fn test_mixed_with_numbers() {
+        let input = "😀123カタカナ456";
+        let mut lexer = TestUnicodeLexer(input);
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens.len(), 4);
+        assert_eq!(tokens[0].kind, TokenKind::EMOJI_EMOTICONS);
+        assert_eq!(tokens[0].text, "😀");
+        assert_eq!(tokens[1].kind, TokenKind::NUMBER);
+        assert_eq!(tokens[1].text, "123");
+        assert_eq!(tokens[2].kind, TokenKind::KATAKANA);
+        assert_eq!(tokens[2].text, "カタカナ");
+        assert_eq!(tokens[3].kind, TokenKind::NUMBER);
+        assert_eq!(tokens[3].text, "456");
+    }
+
+    #[test]
+    fn test_emoji_with_whitespace() {
+        let input = "😀 😁 😂";
+        let mut lexer = TestUnicodeLexer(input);
+        let tokens = lexer.tokenize();
+        // Whitespace tokens are filtered out
+        assert_eq!(tokens.len(), 5); // 3 emojis + 2 whitespaces (if not filtered)
+    }
+}

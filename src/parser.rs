@@ -234,15 +234,32 @@ fn parse_pattern(input: &str) -> Result<RulePattern, ParseError> {
             let inside = &trimmed[1..closing_bracket];
             let quantifier = &trimmed[closing_bracket + 1..];
             
-            // Check if it's a simple range like "0-9" or "a-z"
-            if inside.len() == 3 && inside.chars().nth(1) == Some('-') {
-                let start_char = inside.chars().nth(0).unwrap();
-                let end_char = inside.chars().nth(2).unwrap();
+            // Helper function to parse a character or Unicode escape sequence
+            let parse_char = |s: &str| -> Option<char> {
+                if s.starts_with("\\u{") && s.ends_with('}') {
+                    // Parse Unicode escape: \u{1F600}
+                    let hex_str = &s[3..s.len()-1];
+                    u32::from_str_radix(hex_str, 16)
+                        .ok()
+                        .and_then(|code| char::from_u32(code))
+                } else if s.len() == 1 {
+                    s.chars().next()
+                } else {
+                    None
+                }
+            };
+            
+            // Check if it's a simple range like "0-9" or "a-z" or "\u{1F600}-\u{1F64F}"
+            if let Some(dash_pos) = inside.find('-') {
+                let start_str = &inside[..dash_pos];
+                let end_str = &inside[dash_pos + 1..];
                 
-                match quantifier {
-                    "+" => return Ok(RulePattern::CharRangeMatch1(start_char, end_char)),
-                    "*" => return Ok(RulePattern::CharRangeMatch0(start_char, end_char)),
-                    _ => {} // Fall through to CharSet for other quantifiers
+                if let (Some(start_char), Some(end_char)) = (parse_char(start_str), parse_char(end_str)) {
+                    match quantifier {
+                        "+" => return Ok(RulePattern::CharRangeMatch1(start_char, end_char)),
+                        "*" => return Ok(RulePattern::CharRangeMatch0(start_char, end_char)),
+                        _ => {} // Fall through to CharSet for other quantifiers
+                    }
                 }
             }
         }
