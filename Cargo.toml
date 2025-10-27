@@ -15,6 +15,13 @@ categories = ["parsing", "development-tools"]
 [dependencies]
 regex = "1"
 
+[build-dependencies]
+regex = "1"
+
+[lib]
+name = "klex"
+path = "src/lib.rs"
+
 [[bin]]
 name = "klex"
 path = "src/main.rs"

@@ -242,6 +242,12 @@ fn parse_pattern(input: &str) -> Result<RulePattern, ParseError> {
                     u32::from_str_radix(hex_str, 16)
                         .ok()
                         .and_then(|code| char::from_u32(code))
+                } else if s.starts_with("\\x") && s.len() == 4 {
+                    // Parse hex escape: \x41
+                    let hex_str = &s[2..];
+                    u8::from_str_radix(hex_str, 16)
+                        .ok()
+                        .map(|code| code as char)
                 } else if s.len() == 1 {
                     s.chars().next()
                 } else {

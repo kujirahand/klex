@@ -1,6 +1,7 @@
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
@@ -9,9 +10,6 @@ fn main() {
     // Read the lexer.rs template file
     let template_content =
         fs::read_to_string("src/lexer.rs").expect("Failed to read src/lexer.rs template file");
-
-    // We don't need to create lexer_template.rs anymore
-    // Just create the template.rs file in OUT_DIR
 
     // Generate template.rs with the embedded template
     let escaped_content = template_content.replace("\\", "\\\\").replace("\"", "\\\"");
@@ -27,4 +25,115 @@ pub const LEXER_TEMPLATE: &str = "{}";
     fs::write(&dest_path, template_code).expect("Failed to write template.rs");
 
     println!("cargo:rerun-if-changed=src/lexer.rs");
+    println!("cargo:rerun-if-changed=src/parser.rs");
+    println!("cargo:rerun-if-changed=src/generator.rs");
+    println!("cargo:rerun-if-changed=src/token.rs");
+
+    // Register all .klex files to trigger rebuild when they change
+    register_klex_files();
+    
+    // Generate lexers from all .klex files in tests/ (if klex binary is available)
+    generate_test_lexers();
 }
+
+/// Register all .klex files in tests/ directory for rebuild detection
+fn register_klex_files() {
+    let tests_dir = Path::new("tests");
+    
+    if !tests_dir.exists() {
+        return;
+    }
+
+    // Find all .klex files and register them
+    if let Ok(entries) = fs::read_dir(tests_dir) {
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.extension().map_or(false, |ext| ext == "klex") {
+                println!("cargo:rerun-if-changed={}", path.display());
+            }
+        }
+    }
+}
+
+/// Generate lexers from all .klex files using the klex binary if available
+fn generate_test_lexers() {
+    let tests_dir = Path::new("tests");
+    
+    if !tests_dir.exists() {
+        return;
+    }
+
+    // Find all .klex files in tests/
+    let klex_files: Vec<PathBuf> = match fs::read_dir(tests_dir) {
+        Ok(entries) => entries
+            .filter_map(|entry| entry.ok())
+            .map(|entry| entry.path())
+            .filter(|path| path.extension().map_or(false, |ext| ext == "klex"))
+            .collect(),
+        Err(_) => return,
+    };
+
+    if klex_files.is_empty() {
+        return;
+    }
+
+    // Check if klex binary exists
+    let klex_bin = Path::new("target/debug/klex");
+    if !klex_bin.exists() {
+        // Try release binary
+        let klex_bin_release = Path::new("target/release/klex");
+        if !klex_bin_release.exists() {
+            println!("cargo:warning=klex binary not found. Run 'make generate-lexers' after build to generate test lexers.");
+            return;
+        }
+    }
+
+    // Generate lexer for each .klex file
+    for klex_file in klex_files {
+        let file_stem = klex_file.file_stem().unwrap().to_str().unwrap();
+        let output_file = tests_dir.join(format!("{}_lexer.rs", file_stem));
+
+        // Check if we need to regenerate
+        let needs_regeneration = if output_file.exists() {
+            let klex_modified = fs::metadata(&klex_file)
+                .and_then(|m| m.modified())
+                .ok();
+            let output_modified = fs::metadata(&output_file)
+                .and_then(|m| m.modified())
+                .ok();
+
+            match (klex_modified, output_modified) {
+                (Some(klex_time), Some(output_time)) => klex_time > output_time,
+                _ => true,
+            }
+        } else {
+            true
+        };
+
+        if needs_regeneration {
+            let klex_bin = if Path::new("target/debug/klex").exists() {
+                "target/debug/klex"
+            } else {
+                "target/release/klex"
+            };
+
+            println!("cargo:warning=Generating {} from {}", output_file.display(), klex_file.display());
+            
+            let status = Command::new(klex_bin)
+                .arg(klex_file.to_str().unwrap())
+                .arg(output_file.to_str().unwrap())
+                .status();
+
+            match status {
+                Ok(status) if status.success() => {
+                    println!("cargo:warning=Successfully generated {}", output_file.display());
+                }
+                _ => {
+                    println!("cargo:warning=Failed to generate {}. Run 'make generate-lexers' manually.", output_file.display());
+                }
+            }
+        }
+    }
+}
+
+

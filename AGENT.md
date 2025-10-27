@@ -122,10 +122,12 @@ pub struct Token {
 各ルールは以下の形式で記述：
 
 ```text
-%token <CUSTOM_TOKEN_NAME_1> <CUSTOM_TOKEN_NAME_2> ...
+// コメントも書ける
 <規則> -> <TOKEN_NAME>
 %<TOKEN_NAME> <規則> -> <TOKEN_NAME>
 <規則> -> { <ACTION_CODE> }
+// カスタムトークンの指定
+%token <CUSTOM_TOKEN_NAME_1> <CUSTOM_TOKEN_NAME_2> ...
 ```
 
 規則は次のいずれかの形式を取ることができます:
@@ -141,6 +143,8 @@ pub struct Token {
 [abc]+ ← 1回以上の文字集合'a'、'b'、'c'のいずれかの連続を表す
 [0-9]* ← 0回以上の単純な文字範囲'A'から'Z'までの連続を表す
 [abc]* ← 0回以上の文字集合'a'、'b'、'c'のいずれかの連続を表す
+[\u{1F600}-\u{1F64F}]+ ← Unicode範囲の指定も可能
+[\x41-\x5A]+ ← 16進数による文字範囲指定も可能
 /正規表現パターン/ ← 正規表現で複雑なパターンを表現
 ( <規則> | <規則> )  ← 選択肢
 ```

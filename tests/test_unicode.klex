@@ -9,6 +9,8 @@
 [\u{AC00}-\u{D7AF}]+ -> HANGUL
 [\u{0400}-\u{04FF}]+ -> CYRILLIC
 [\u{0600}-\u{06FF}]+ -> ARABIC
+[\x41-\x5A]+ -> UPPERCASE_HEX
+[\x61-\x7A]+ -> LOWERCASE_HEX
 [0-9]+ -> NUMBER
 [ \t\n\r]+ -> _
 %%
@@ -138,5 +140,39 @@ mod tests {
         let tokens = lexer.tokenize();
         // Whitespace tokens are filtered out
         assert_eq!(tokens.len(), 5); // 3 emojis + 2 whitespaces (if not filtered)
+    }
+
+    #[test]
+    fn test_hex_uppercase() {
+        let input = "ABCXYZ";
+        let mut lexer = TestUnicodeLexer(input);
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].kind, TokenKind::UPPERCASE_HEX);
+        assert_eq!(tokens[0].text, "ABCXYZ");
+    }
+
+    #[test]
+    fn test_hex_lowercase() {
+        let input = "abcxyz";
+        let mut lexer = TestUnicodeLexer(input);
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].kind, TokenKind::LOWERCASE_HEX);
+        assert_eq!(tokens[0].text, "abcxyz");
+    }
+
+    #[test]
+    fn test_hex_mixed() {
+        let input = "ABC123abc";
+        let mut lexer = TestUnicodeLexer(input);
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens.len(), 3);
+        assert_eq!(tokens[0].kind, TokenKind::UPPERCASE_HEX);
+        assert_eq!(tokens[0].text, "ABC");
+        assert_eq!(tokens[1].kind, TokenKind::NUMBER);
+        assert_eq!(tokens[1].text, "123");
+        assert_eq!(tokens[2].kind, TokenKind::LOWERCASE_HEX);
+        assert_eq!(tokens[2].text, "abc");
     }
 }
