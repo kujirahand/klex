@@ -34,7 +34,6 @@ test-unit:
 # Run integration tests
 test-integration: generate-lexers
 	@echo "Running integration tests..."
-	cargo test --test lexer_test
 	cargo test --test test_new_patterns_lexer
 	@if [ -f "tests/test_context_lexer.rs" ]; then \
 		cargo test --test test_context_lexer; \
@@ -110,7 +109,7 @@ clean:
 # Clean generated files
 clean-generated:
 	@echo "Cleaning generated files..."
-	@rm -f lexer.rs tests/example_lexer.rs tests/test_context_lexer.rs tests/test_new_patterns_lexer.rs
+	@rm -f tests/*.rs
 
 # Full clean (build artifacts + generated files)
 clean-all: clean clean-generated

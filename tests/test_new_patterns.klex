@@ -35,7 +35,7 @@ use std::collections::HashMap;
 /[^a-zA-Z0-9 \t\n+x-]/ -> SPECIAL_CHAR
 
 // Test action with new patterns
-'x' -> { println!("Found x character"); Some(Token::new(999, test_t.value.clone(), test_t.row, test_t.col, test_t.length, test_t.indent)) }
+'x' -> { println!("Found x character"); Some(Token::new(TokenKind::Unknown, test_t.value.clone(), test_t.index, test_t.row, test_t.col, test_t.length, test_t.indent)) }
 %%
 
 #[cfg(test)]
@@ -56,7 +56,7 @@ mod tests {
         assert!(!tokens.is_empty());
         println!("Generated {} tokens", tokens.len());
         for token in &tokens {
-            println!("Token: kind={}, value='{}'", token.kind, token.value);
+            println!("Token: kind={:?}, value='{}'", token.kind, token.value);
         }
 
         // Test specific patterns
@@ -80,7 +80,7 @@ mod tests {
         
         println!("Character ranges test tokens:");
         for token in &tokens {
-            println!("Token: kind={}, value='{}'", token.kind, token.value);
+            println!("Token: kind={:?}, value='{}'", token.kind, token.value);
         }
         
         // Should match digit range, lower case, upper case, and character sets

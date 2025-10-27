@@ -80,9 +80,16 @@ klex/
 **Token構造体の仕様**:
 
 ```rust
+pub enum TokenKind {
+    // トークン種別の列挙型（例: IDENTIFIER, NUMBER, PLUS, etc.）
+    // 生成時に自動的に定義される
+    Unknown
+}
+
 pub struct Token {
-    pub kind: u32,      // トークン種別（定数として定義）
+    pub kind: TokenKind,// トークン種別（列挙型として定義）
     pub value: String,  // マッチしたテキスト
+    pub index: usize,   // 入力全体に対する0ベースの開始位置
     pub row: usize,     // 1ベース行番号
     pub col: usize,     // 1ベース列番号
     pub length: usize,  // トークン長

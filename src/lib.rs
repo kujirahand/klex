@@ -54,9 +54,10 @@
 //! \- -> MINUS
 //! ```
 
-pub mod generator;
 pub mod parser;
+pub mod generator;
 pub mod token;
+pub mod lexer;
 
 pub use generator::generate_lexer;
 pub use parser::{parse_spec, LexerRule, LexerSpec, ParseError};

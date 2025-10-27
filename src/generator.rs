@@ -100,13 +100,21 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
 
     // Generate token kind constants
     let mut constants = String::new();
-    constants.push_str("// Token kind constants\n");
+    constants.push_str("// Token kind constants for backward compatibility\n");
     for rule in &spec.rules {
         if rule.action_code.is_none() && !rule.name.is_empty() {
-            constants.push_str(&format!("pub const {}: u32 = {};\n", rule.name, rule.kind));
+            constants.push_str(&format!("pub const {}: TokenKind = TokenKind::{};\n", rule.name, rule.name));
         }
     }
     constants.push_str("\n");
+
+    // Generate TokenKind enum variants
+    let mut token_kind_variants = String::new();
+    for rule in &spec.rules {
+        if rule.action_code.is_none() && !rule.name.is_empty() {
+            token_kind_variants.push_str(&format!("\t{},\n", rule.name));
+        }
+    }
 
     // Generate regex cache code
     let mut regex_code = String::new();
@@ -128,12 +136,12 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
     // First, generate context-dependent rules (higher priority)
     for rule in &spec.rules {
         if let Some(context_token) = &rule.context_token {
-            // Find the context token kind by name
-            let context_kind = spec
+            // Find the context token name
+            let context_token_name = spec
                 .rules
                 .iter()
                 .find(|r| r.name == *context_token)
-                .map(|r| r.kind)
+                .map(|r| r.name.clone())
                 .unwrap_or_else(|| panic!("Context token '{}' not found", context_token));
 
             let pattern_desc = pattern_to_regex(&rule.pattern)
@@ -142,24 +150,25 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
                 .replace('\r', "\\r");
             rule_match_code.push_str(&format!(
                 r#"        // Context-dependent rule: {} -> {} (after {})
-        if self.last_token_kind == Some({}) {{
+        if self.last_token_kind == Some(TokenKind::{}) {{
             if let Some(matched) = self.match_cached_pattern(remaining, {}) {{
                 let token = Token::new(
-                    {},
+                    TokenKind::{},
                     matched.clone(),
+                    self.pos,
                     start_row,
                     start_col,
                     matched.len(),
                     indent,
                 );
                 self.advance(&matched);
-                self.last_token_kind = Some(token.kind);
+                self.last_token_kind = Some(token.kind.clone());
                 return Some(token);
             }}
         }}
 
 "#,
-                pattern_desc, rule.name, context_token, context_kind, rule.kind, rule.kind
+                pattern_desc, rule.name, context_token, context_token_name, rule.kind, rule.name
             ));
         }
     }
@@ -178,8 +187,9 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
             let matched_str = matched.clone();
             // Create token for action code to use
             let test_t = Token::new(
-                {},
+                TokenKind::Unknown,
                 matched_str.clone(),
+                self.pos,
                 start_row,
                 start_col,
                 matched_str.len(),
@@ -191,7 +201,7 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
                 {}
             }};
             if let Some(token) = action_result {{
-                self.last_token_kind = Some(token.kind);
+                self.last_token_kind = Some(token.kind.clone());
                 return Some(token);
             }} else {{
                 // Continue to next iteration if no token was returned from action
@@ -200,7 +210,7 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
         }}
 
 "#,
-                pattern_desc, action_code, rule.kind, rule.kind, action_code
+                pattern_desc, action_code, rule.kind, action_code
             ));
         }
     }
@@ -211,7 +221,7 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
             let update_context = if rule.name == "WHITESPACE" || rule.name == "NEWLINE" {
                 "// Whitespace tokens don't update context"
             } else {
-                "self.last_token_kind = Some(token.kind)"
+                "self.last_token_kind = Some(token.kind.clone())"
             };
 
             let pattern_desc = pattern_to_regex(&rule.pattern)
@@ -222,8 +232,9 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
                 r#"        // Rule: {} -> {}
         if let Some(matched) = self.match_cached_pattern(remaining, {}) {{
             let token = Token::new(
-                {},
+                TokenKind::{},
                 matched.clone(),
+                self.pos,
                 start_row,
                 start_col,
                 matched.len(),
@@ -235,7 +246,7 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
         }}
 
 "#,
-                pattern_desc, rule.name, rule.kind, rule.kind, update_context
+                pattern_desc, rule.name, rule.kind, rule.name, update_context
             ));
         }
     }
@@ -253,13 +264,12 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
     // Add cases for each defined token
     for rule in &spec.rules {
         if rule.action_code.is_none() && !rule.name.is_empty() {
-            to_string_method.push_str(&format!("\t\t\t{} => \"{}\".to_string(),\n", rule.name, rule.name));
+            to_string_method.push_str(&format!("\t\t\tTokenKind::{} => \"{}\".to_string(),\n", rule.name, rule.name));
         }
     }
     
-    // Add case for UNKNOWN_TOKEN
-    to_string_method.push_str("\t\t\tUNKNOWN_TOKEN => \"UNKNOWN_TOKEN\".to_string(),\n");
-    to_string_method.push_str("\t\t\t_ => format!(\"TOKEN_{}\", self.kind),\n");
+    // Add case for Unknown
+    to_string_method.push_str("\t\t\tTokenKind::Unknown => \"UNKNOWN\".to_string(),\n");
     to_string_method.push_str("\t\t}\n");
     to_string_method.push_str("\t}");
 
@@ -268,6 +278,7 @@ pub fn generate_lexer(spec: &LexerSpec, source_file: &str) -> String {
         "//----<GENERATED_BY>----",
         &format!("// Generated from: {}", source_file),
     );
+    output = output.replace("//----<TOKEN_KIND>----", &token_kind_variants);
     output = output.replace("//----<REG_EX_CODE>----", &regex_code);
     output = output.replace("//----<RULE_MATCH_CODE>----", &rule_match_code);
     output = output.replace("//----<TO_STRING_METHOD>----", &to_string_method);
